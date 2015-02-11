@@ -1,4 +1,4 @@
-module Hmbo.SparseMatrix 
+module HMbo.SparseMatrix 
     (zeroMatrix
     ,numEntries
     ) where

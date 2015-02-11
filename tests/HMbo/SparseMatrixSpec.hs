@@ -1,7 +1,7 @@
-module Hmbo.SparseMatrixSpec (spec) where
+module HMbo.SparseMatrixSpec (spec) where
 
 import Test.Hspec
-import Hmbo.SparseMatrix
+import HMbo.SparseMatrix
 
 spec :: Spec
 spec = do
