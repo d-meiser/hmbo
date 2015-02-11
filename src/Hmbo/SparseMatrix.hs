@@ -1,4 +1,14 @@
-module Hmbo.SparseMatrix where
+module Hmbo.SparseMatrix 
+    (zeroMatrix
+    ,numEntries
+    ) where
 
-newtype SparseMatrix = SparseMatrix
+data Entry = Entry Int Int Double
 
+newtype SparseMatrix = SparseMatrix [Entry]
+
+zeroMatrix :: SparseMatrix
+zeroMatrix = SparseMatrix []
+
+numEntries :: SparseMatrix -> Int
+numEntries (SparseMatrix entries) = length entries

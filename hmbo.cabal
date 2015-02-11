@@ -45,7 +45,7 @@ cabal-version:       >=1.8
 library
   hs-source-dirs:      src
   -- Modules exported by the library.
-  exposed-modules:     HMbo
+  exposed-modules:     HMbo, Hmbo.SparseMatrix
   
   -- Modules included in this library but not exported.
   -- other-modules:       
