@@ -41,7 +41,30 @@ getDim (ScaledId d _) = d
 getDim (Null d) = d
 
 mul :: LinearOp -> LinearOp -> Maybe LinearOp
-mul = undefined
+mul op1 op2 | d1 == d2 = Just $ mul' op1 op2
+            | otherwise = Nothing
+            where
+              d1 = getDim op1
+              d2 = getDim op2
+mul' :: LinearOp -> LinearOp -> LinearOp
+mul' op@(Null _) _ = op
+mul' _ op@(Null _) = op
+mul' (ScaledId _ a) op = scale a op
+mul' op (ScaledId _ a) = scale a op
+mul' (Plus d op1 op2) op = Plus d (mul' op1 op) (mul' op2 op)
+mul' op (Plus d op1 op2) = Plus d (mul' op op1) (mul' op op2)
+mul' (KetBra d m1) (KetBra _ m2) =
+  case theProduct of
+    Just m3 -> KetBra d m3
+    Nothing -> Null d
+    where
+      mProd :: SparseMatrixEntry -> SparseMatrixEntry -> Maybe SparseMatrixEntry
+      mProd (SparseMatrixEntry r1 c1 a1) (SparseMatrixEntry r2 c2 a2)
+        | c1 == r2 = Just $ SparseMatrixEntry r1 c2 (a1 * a2)
+        | otherwise = Nothing
+      theProduct = mProd m1 m2
+
+
 
 add :: LinearOp -> LinearOp -> Maybe LinearOp
 add op1 op2 | d1 == d2 = Just $ Plus d1 op1 op2
