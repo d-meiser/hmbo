@@ -44,7 +44,11 @@ mul :: LinearOp -> LinearOp -> Maybe LinearOp
 mul = undefined
 
 add :: LinearOp -> LinearOp -> Maybe LinearOp
-add = undefined
+add op1 op2 | d1 == d2 = Just $ Plus d1 op1 op2
+            | otherwise = Nothing
+            where
+              d1 = getDim op1
+              d2 = getDim op2
 
 scale :: Amplitude -> LinearOp -> LinearOp
 scale a (Kron d op1 op2) = Kron d (scale a op1) op2

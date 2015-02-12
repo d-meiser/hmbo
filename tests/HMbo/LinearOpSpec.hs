@@ -48,3 +48,11 @@ spec = do
         (identity (fromJust $ toDim 3))
           `shouldBe`
             identity (fromJust $ toDim 9)
+
+  describe "add" $ do
+    it "Results in Nothing if dimensions don't match" $ do
+      add
+        (identity (fromJust $ toDim 2))
+        (identity (fromJust $ toDim 3))
+          `shouldBe`
+            Nothing
