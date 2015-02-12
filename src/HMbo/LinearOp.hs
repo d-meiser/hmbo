@@ -1,5 +1,7 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module HMbo.LinearOp(
     zero,
+    identity,
     getDim,
     Dim(unPositive),
     toDim,
@@ -10,22 +12,26 @@ module HMbo.LinearOp(
     kron
     ) where
 
-newtype Amplitude = Amplitude Double
-  deriving(Show)
+type Amplitude = Double
 newtype MatrixElement = MatrixElement Double
   deriving(Show)
 newtype Dim = Dim { unPositive :: Int}
-  deriving(Eq, Show, Ord)
+  deriving(Eq, Show, Ord, Num)
+
+data SparseMatrixEntry = SparseMatrixEntry Int Int Amplitude
+  deriving(Show, Eq)
 
 data LinearOp = Kron Dim LinearOp LinearOp
               | Plus Dim LinearOp LinearOp
-              | KetBra Dim MatrixElement
+              | KetBra Dim SparseMatrixEntry
               | ScaledId Dim Amplitude
               | Null Dim
-  deriving(Show)
+  deriving(Show, Eq)
 
 zero :: Dim -> LinearOp
 zero d = Null d
+identity :: Dim -> LinearOp
+identity d = ScaledId d 1.0
 
 getDim :: LinearOp -> Dim
 getDim (Kron d _ _) = d
@@ -36,12 +42,23 @@ getDim (Null d) = d
 
 mul :: LinearOp -> LinearOp -> Maybe LinearOp
 mul = undefined
+
 add :: LinearOp -> LinearOp -> Maybe LinearOp
 add = undefined
+
 scale :: Amplitude -> LinearOp -> LinearOp
-scale = undefined
+scale a (Kron d op1 op2) = Kron d (scale a op1) op2
+scale a (Plus d op1 op2) = Plus d (scale a op1) (scale a op2)
+scale a (KetBra d (SparseMatrixEntry r c me)) = KetBra d $
+  SparseMatrixEntry r c (a * me)
+scale a (ScaledId d me) = ScaledId d (a * me)
+scale _ n@(Null _) = n
+
 kron :: LinearOp -> LinearOp -> LinearOp
-kron = undefined
+kron (Null d) op = Null (d * (getDim op))
+kron op (Null d) = Null (d * (getDim op))
+kron (ScaledId d1 a1) (ScaledId d2 a2) = ScaledId (d1 * d2) (a1 * a2)
+kron op1 op2 = Kron ((getDim op1) * (getDim op2)) op1 op2
 
 toDim :: Int -> Maybe Dim
 toDim d = if (d < 1) then Nothing else Just (Dim d)
