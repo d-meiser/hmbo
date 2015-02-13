@@ -36,12 +36,6 @@ spec = do
           kron (identity (fromJust $ toDim 3))
           (identity (fromJust $ toDim 3))) `shouldBe`
             (fromJust $ toDim 9)
-    it "Results in Null when one of the operators is Null." $ do
-      kron
-        (identity (fromJust $ toDim 3))
-        (zero (fromJust $ toDim 3))
-          `shouldBe`
-            zero (fromJust $ toDim 9)
     it "Results in ScaledId when both of the operators are identites." $ do
       kron
         (identity (fromJust $ toDim 3))
