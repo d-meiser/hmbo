@@ -9,7 +9,8 @@ module HMbo.LinearOp(
     mul,
     add,
     scale,
-    kron
+    kron,
+    identityMatrix
     ) where
 
 type Amplitude = Double
@@ -59,7 +60,42 @@ mul' (KetBra d m1) (KetBra _ m2) =
         | c1 == r2 = Just $ SparseMatrixEntry r1 c2 (a1 * a2)
         | otherwise = Nothing
       theProduct = mProd m1 m2
+mul' (Kron dim a b) (Kron _ c d) 
+        | dimsCompatible = Kron  dim (mul' a c) (mul' b d)
+        | otherwise = Plus dim []
+  where
+    dimsCompatible = getDim a == getDim c && getDim b == getDim d
 
+mul' op1@(KetBra dim _) op2@(Kron _ _ _) = Plus dim products
+  where
+    products = filter isNonZero $ [mul' op1 op2' | op2' <- [KetBra dim entry | entry <- (toSparseEntries op2)]]
+    isNonZero (Plus _ []) = False
+    isNonZero _ = True
+
+mul' op1@(Kron dim _ _ ) op2@(KetBra _ _) = Plus dim products
+  where
+    products = filter isNonZero $ [mul' op1' op2 | op1' <- [KetBra dim entry | entry <- (toSparseEntries op1)]]
+    isNonZero (Plus _ []) = False
+    isNonZero _ = True
+
+toSparseEntries :: LinearOp -> [SparseMatrixEntry]
+toSparseEntries (Kron _ op1 op2) = [combine se1 se2 |
+                                     se1 <- (toSparseEntries op1),
+                                     se2 <- (toSparseEntries op2)]
+  where
+    combine :: SparseMatrixEntry -> SparseMatrixEntry -> SparseMatrixEntry
+    combine
+      (SparseMatrixEntry r1 c1 a1)
+      (SparseMatrixEntry r2 c2 a2) = SparseMatrixEntry (r1 * d2 + r2) (c1 * d2 + c2) (a1 * a2)
+      where
+        d2 = fromDim $ getDim op2
+toSparseEntries (Plus _ ops) = concat $ map toSparseEntries ops
+toSparseEntries (KetBra _ op) = [op]
+toSparseEntries (ScaledId d a) = [SparseMatrixEntry i i a | i <- [0..((fromDim d) - 1)]]
+
+
+identityMatrix :: Dim -> LinearOp
+identityMatrix d = ScaledId d 1.0
 
 
 add :: LinearOp -> LinearOp -> Maybe LinearOp
