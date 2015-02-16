@@ -156,12 +156,19 @@ apply (Plus d ops) x | fromDim d == VU.length x =
       zeroVec = VU.replicate (fromDim d) 0
 
 apply (Kron _ op1 op2) x = Just $
-        VU.concat $ map (\x' -> fromJust $ apply op2 x') subVectors
+    transpose d2 $
+    applyOne op1 d1 $
+    transpose d1 $
+    applyOne op2 d2 x
   where
     d1 = fromDim $ getDim op1
     d2 = fromDim $ getDim op2
-    subVectors :: [Ket]
-    subVectors = [VU.slice (d2 * j) d2 x | j <- [0..(d1 - 1)]]
+    subVectors :: Int -> Ket -> [Ket]
+    subVectors d v = [VU.slice (d * j) d v | j <- [0..(numVecs - 1)]]
+      where
+        numVecs = (VU.length v) `div` d
+    applyOne op d v = VU.concat $
+      map (\x' -> fromJust $ apply op x') (subVectors d v)
 
 transpose :: Int -> Ket -> Ket
 transpose n v = VU.fromList $
