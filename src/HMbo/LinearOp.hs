@@ -10,8 +10,16 @@ module HMbo.LinearOp(
     add,
     scale,
     kron,
-    identityMatrix
+    apply,
+    identityMatrix,
+    isZero,
+    Ket(..)
     ) where
+
+
+import Data.Maybe
+import qualified Data.Vector.Unboxed as VU
+type Ket = VU.Vector Amplitude
 
 type Amplitude = Double
 newtype MatrixElement = MatrixElement Double
@@ -68,15 +76,17 @@ mul' (Kron dim a b) (Kron _ c d)
 
 mul' op1@(KetBra dim _) op2@(Kron _ _ _) = Plus dim products
   where
-    products = filter isNonZero $ [mul' op1 op2' | op2' <- [KetBra dim entry | entry <- (toSparseEntries op2)]]
-    isNonZero (Plus _ []) = False
-    isNonZero _ = True
+    products = filter isNonZero $
+      [mul' op1 op2' | op2' <- 
+        [KetBra dim entry | entry <- (toSparseEntries op2)]]
+    isNonZero = not . isZero
 
 mul' op1@(Kron dim _ _ ) op2@(KetBra _ _) = Plus dim products
   where
-    products = filter isNonZero $ [mul' op1' op2 | op1' <- [KetBra dim entry | entry <- (toSparseEntries op1)]]
-    isNonZero (Plus _ []) = False
-    isNonZero _ = True
+    products = filter isNonZero $
+      [mul' op1' op2 | op1' <- 
+        [KetBra dim entry | entry <- (toSparseEntries op1)]]
+    isNonZero = not . isZero
 
 toSparseEntries :: LinearOp -> [SparseMatrixEntry]
 toSparseEntries (Kron _ op1 op2) = [combine se1 se2 |
@@ -93,10 +103,12 @@ toSparseEntries (Plus _ ops) = concat $ map toSparseEntries ops
 toSparseEntries (KetBra _ op) = [op]
 toSparseEntries (ScaledId d a) = [SparseMatrixEntry i i a | i <- [0..((fromDim d) - 1)]]
 
-
 identityMatrix :: Dim -> LinearOp
 identityMatrix d = ScaledId d 1.0
 
+isZero ::LinearOp -> Bool
+isZero (Plus _ []) = True
+isZero _ = False
 
 add :: LinearOp -> LinearOp -> Maybe LinearOp
 add op1 op2 | d1 == d2 = Just $ Plus d1 [op1, op2]
@@ -114,10 +126,39 @@ scale a (ScaledId d me) = ScaledId d (a * me)
 
 kron :: LinearOp -> LinearOp -> LinearOp
 kron (ScaledId d1 a1) (ScaledId d2 a2) = ScaledId (d1 * d2) (a1 * a2)
-kron op1 op2 = Kron ((getDim op1) * (getDim op2)) op1 op2
+kron op1 op2 | isZero op1 || isZero op2 = Plus ((getDim op1) * (getDim op2)) []
+             | otherwise = Kron ((getDim op1) * (getDim op2)) op1 op2
 
 toDim :: Int -> Maybe Dim
 toDim d = if (d < 1) then Nothing else Just (Dim d)
 
 fromDim :: Dim -> Int
 fromDim (Dim d) = d
+
+apply :: LinearOp -> Ket -> Maybe Ket
+apply (ScaledId d a) x | fromDim d == VU.length x = Just $ VU.map (a *) x
+                       | otherwise = Nothing
+apply (KetBra d (SparseMatrixEntry i j a)) x
+  | fromDim d == VU.length x =
+      Just $  VU.generate (fromDim d) yfunc
+  | otherwise = Nothing
+    where
+      yfunc :: Int -> Amplitude
+      yfunc i' | i' == i = a * ((VU.!) x j)
+               | otherwise = 0
+apply (Plus d ops) x | fromDim d == VU.length x =
+                        Just $ foldl addVecs zeroVec (map (\op -> fromJust $ apply op x) ops)
+                     | otherwise = Nothing
+     where
+      addVecs :: Ket -> Ket -> Ket
+      addVecs = VU.zipWith (+)
+      zeroVec = VU.replicate (fromDim d) 0
+
+apply (Kron _ op1 op2) x = Just $
+        VU.concat $ map (\x' -> fromJust $ apply op2 x') subVectors
+  where
+    d1 = fromDim $ getDim op1
+    d2 = fromDim $ getDim op2
+    subVectors :: [Ket]
+    subVectors = [VU.slice (d2 * j) d2 x | j <- [0..(d1 - 1)]]
+

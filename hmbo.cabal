@@ -47,15 +47,17 @@ library
   hs-source-dirs:      src
   -- Modules exported by the library.
   exposed-modules:     HMbo
-  
+
   -- Modules included in this library but not exported.
   other-modules:
     HMbo.SparseMatrix,
     HMbo.LinearOp
-  
+
   -- Other library packages from which modules are imported.
-  build-depends:       base ==4.6.*
-  default-language:    Haskell2010  
+  build-depends:
+    base == 4.6.*,
+    vector == 0.10.0.1
+  default-language:    Haskell2010
 
 test-suite tests
   ghc-options: -Wall
@@ -65,5 +67,6 @@ test-suite tests
   hs-source-dirs: tests
   build-depends:       base,
                        hmbo,
-                       hspec                >= 1.8
+                       hspec >= 1.8,
+                       vector
   default-language:    Haskell2010  

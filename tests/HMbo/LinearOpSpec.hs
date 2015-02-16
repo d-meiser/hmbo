@@ -3,6 +3,7 @@ module HMbo.LinearOpSpec (spec) where
 import Test.Hspec
 import HMbo
 import Data.Maybe
+import qualified Data.Vector.Unboxed as VU
 
 spec :: Spec
 spec = do
@@ -44,9 +45,32 @@ spec = do
             identity (fromJust $ toDim 9)
 
   describe "add" $ do
-    it "Results in Nothing if dimensions don't match" $ do
+    it "Results in Nothing if dimensions don't match." $ do
       add
         (identity (fromJust $ toDim 2))
         (identity (fromJust $ toDim 3))
           `shouldBe`
             Nothing
+
+  describe "apply" $ do
+    it "Returns nothing when dimensions don't match." $ do
+      let v = (VU.fromList [1.3, 3.4]) :: Ket
+      let d = fromJust $ toDim 3
+      apply (identityMatrix d) v `shouldBe` Nothing
+    it "Returns something when dimensions match." $ do
+      let v = (VU.fromList [1.3, 3.4]) :: Ket
+      let d = fromJust $ toDim 2
+      apply (identityMatrix d) v `shouldSatisfy` not . isNothing
+
+    describe "Identity" $ do
+      it "Returns vectors unchanged." $ do
+        let v = (VU.fromList [1.3, 3.4]) :: Ket
+        let d = fromJust $ toDim 2
+        apply (identityMatrix d) v `shouldBe` Just v
+
+    describe "Zero operator" $ do
+      it "Returns 0." $ do
+        let v = (VU.fromList [1.3, 3.4]) :: Ket
+        let w = (VU.replicate 2 0) :: Ket
+        let d = fromJust $ toDim 2
+        (fromJust $ apply (zero d) v) `shouldBe` w
