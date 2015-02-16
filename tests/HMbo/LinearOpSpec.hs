@@ -74,3 +74,17 @@ spec = do
         let w = (VU.replicate 2 0) :: Ket
         let d = fromJust $ toDim 2
         (fromJust $ apply (zero d) v) `shouldBe` w
+
+  describe "transpose" $ do
+    it "Returns the same vector when transposed with pivot 1" $ do
+      let v = (VU.fromList [1.3, 3.4]) :: Ket
+      transpose 1 v `shouldBe` v
+    it "Returns the same vector when transposed with pivot (length v)" $ do
+      let v = (VU.fromList [1.3, 3.4]) :: Ket
+      transpose (VU.length v) v `shouldBe` v
+    it "Works for a typical case" $ do
+      let v = (VU.fromList [1, 2, 3, 4]) :: Ket
+      let w = (VU.fromList [1, 3, 2, 4]) :: Ket
+      transpose 2 v `shouldBe` w
+      
+    

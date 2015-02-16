@@ -13,7 +13,8 @@ module HMbo.LinearOp(
     apply,
     identityMatrix,
     isZero,
-    Ket(..)
+    transpose,
+    Ket
     ) where
 
 
@@ -161,4 +162,10 @@ apply (Kron _ op1 op2) x = Just $
     d2 = fromDim $ getDim op2
     subVectors :: [Ket]
     subVectors = [VU.slice (d2 * j) d2 x | j <- [0..(d1 - 1)]]
+
+transpose :: Int -> Ket -> Ket
+transpose n v = VU.fromList $
+                  [(VU.!) v (i * n + j) | j <- [0..(n - 1)], i <- [0..(m - 1)]]
+  where
+    m = (VU.length v) `div` n
 
