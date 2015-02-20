@@ -50,7 +50,6 @@ library
 
   -- Modules included in this library but not exported.
   other-modules:
-    HMbo.SparseMatrix,
     HMbo.LinearOp
 
   -- Other library packages from which modules are imported.
