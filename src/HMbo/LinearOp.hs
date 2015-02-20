@@ -10,18 +10,16 @@ module HMbo.LinearOp(
     kron,
     apply,
     identityMatrix,
-    isZero,
-    transpose,
-    Ket
+    isZero
     ) where
 
 import HMbo.Dim
+import HMbo.Amplitude
+import HMbo.Ket
 import Data.Maybe
 import qualified Data.Vector.Unboxed as VU
-type Ket = VU.Vector Amplitude
 
-type Amplitude = Double
-newtype MatrixElement = MatrixElement Double
+newtype MatrixElement = MatrixElement Amplitude
   deriving(Show)
 
 data SparseMatrixEntry = SparseMatrixEntry Int Int Amplitude
@@ -159,10 +157,4 @@ apply (Kron _ op1 op2) x = Just $
         numVecs = (VU.length v) `div` d
     applyOne op d v = VU.concat $
       map (\x' -> fromJust $ apply op x') (subVectors d v)
-
-transpose :: Int -> Ket -> Ket
-transpose n v = VU.fromList $
-                  [(VU.!) v (i * n + j) | j <- [0..(n - 1)], i <- [0..(m - 1)]]
-  where
-    m = (VU.length v) `div` n
 

@@ -52,6 +52,8 @@ library
   other-modules:
     HMbo.LinearOp
     HMbo.Dim
+    HMbo.Ket
+    HMbo.Amplitude
 
   -- Other library packages from which modules are imported.
   build-depends:
