@@ -1,4 +1,6 @@
-module HMbo.Amplitude (Amplitude(..)) where
+module HMbo.Amplitude (Amplitude) where
 
-type Amplitude = Double
+import Data.Complex
+
+type Amplitude = Complex Double
 
