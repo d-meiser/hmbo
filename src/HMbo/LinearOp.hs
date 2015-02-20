@@ -1,9 +1,7 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module HMbo.LinearOp(
     zero,
     identity,
     getDim,
-    Dim(unPositive),
     toDim,
     fromDim,
     mul,
@@ -17,7 +15,7 @@ module HMbo.LinearOp(
     Ket
     ) where
 
-
+import HMbo.Dim
 import Data.Maybe
 import qualified Data.Vector.Unboxed as VU
 type Ket = VU.Vector Amplitude
@@ -25,8 +23,6 @@ type Ket = VU.Vector Amplitude
 type Amplitude = Double
 newtype MatrixElement = MatrixElement Double
   deriving(Show)
-newtype Dim = Dim { unPositive :: Int}
-  deriving(Eq, Show, Ord, Num)
 
 data SparseMatrixEntry = SparseMatrixEntry Int Int Amplitude
   deriving(Show, Eq)
@@ -129,12 +125,6 @@ kron :: LinearOp -> LinearOp -> LinearOp
 kron (ScaledId d1 a1) (ScaledId d2 a2) = ScaledId (d1 * d2) (a1 * a2)
 kron op1 op2 | isZero op1 || isZero op2 = Plus ((getDim op1) * (getDim op2)) []
              | otherwise = Kron ((getDim op1) * (getDim op2)) op1 op2
-
-toDim :: Int -> Maybe Dim
-toDim d = if (d < 1) then Nothing else Just (Dim d)
-
-fromDim :: Dim -> Int
-fromDim (Dim d) = d
 
 apply :: LinearOp -> Ket -> Maybe Ket
 apply (ScaledId d a) x | fromDim d == VU.length x = Just $ VU.map (a *) x

@@ -51,6 +51,7 @@ library
   -- Modules included in this library but not exported.
   other-modules:
     HMbo.LinearOp
+    HMbo.Dim
 
   -- Other library packages from which modules are imported.
   build-depends:
