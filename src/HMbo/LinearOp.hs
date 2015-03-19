@@ -16,7 +16,6 @@ module HMbo.LinearOp(
 import HMbo.Dim
 import HMbo.Amplitude
 import HMbo.Ket
-import Data.Maybe
 import qualified Data.Vector.Unboxed as VU
 
 newtype MatrixElement = MatrixElement Amplitude
@@ -136,18 +135,21 @@ apply (KetBra d (SparseMatrixEntry i j a)) x
       yfunc i' | i' == i = a * ((VU.!) x j)
                | otherwise = 0
 apply (Plus d ops) x | fromDim d == VU.length x =
-                        Just $ foldl addVecs zeroVec (map (\op -> fromJust $ apply op x) ops)
+                        foldl addVecs 
+                          (Just zeroVec)
+                          (map (\op -> apply op x) ops)
                      | otherwise = Nothing
      where
-      addVecs :: Ket -> Ket -> Ket
-      addVecs = VU.zipWith (+)
+      addVecs :: Maybe Ket -> Maybe Ket -> Maybe Ket
+      addVecs _ Nothing = Nothing
+      addVecs Nothing _ = Nothing
+      addVecs (Just a) (Just b) = Just $ VU.zipWith (+) a b
       zeroVec = VU.replicate (fromDim d) 0
 
-apply (Kron _ op1 op2) x = Just $
-    transpose d2 $
-    applyOne op1 d1 $
-    transpose d1 $
-    applyOne op2 d2 x
+apply (Kron _ op1 op2) x = do
+    xp <- applyOne op2 d2 x
+    xpp <- applyOne op1 d1 (transpose d1 xp)
+    return (transpose d2 xpp)
   where
     d1 = fromDim $ getDim op1
     d2 = fromDim $ getDim op2
@@ -155,6 +157,7 @@ apply (Kron _ op1 op2) x = Just $
     subVectors d v = [VU.slice (d * j) d v | j <- [0..(numVecs - 1)]]
       where
         numVecs = (VU.length v) `div` d
-    applyOne op d v = VU.concat $
-      map (\x' -> fromJust $ apply op x') (subVectors d v)
+    applyOne :: LinearOp -> Int -> Ket -> Maybe Ket
+    applyOne op d v = VU.concat `fmap`
+      (sequence $ map (\x' -> apply op x') (subVectors d v))
 
