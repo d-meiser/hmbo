@@ -16,7 +16,11 @@ version:             0.1.0.0
 synopsis:            Library for quantum mechanical many body operators
 
 -- A longer description of the package.
--- description:         
+description:         The hmbo library is designed for numerical
+                     simulations with quantum mechanical many body
+                     systems (e.g. quantum information, quantum
+                     computing, quantum optics, strongly correlated
+                     quantum matter etc.)
 
 -- The license under which the package is released.
 license:             GPL-3
@@ -31,8 +35,11 @@ author:              Dominic Meiser
 -- patches.
 maintainer:          dmeiser79@gmail.com
 
--- A copyright notice.
--- copyright:           
+source-repository:   head
+  type:     git
+  location: https://github.com/d-meiser/hmbo
+
+copyright:           (c) 2015 Dominic Meiser
 
 category:            Math
 
