@@ -5,6 +5,11 @@ import HMbo
 import Data.Maybe
 import qualified Data.Vector.Unboxed as VU
 
+
+notNothing :: Maybe a -> Bool
+notNothing = not . isNothing
+
+
 spec :: Spec
 spec = do
   describe "Null Matrix" $ do
@@ -23,8 +28,8 @@ spec = do
 
   describe "ketBra" $ do
     it "Can be constructed from valid indices." $ do
-      ketBra (fromJust $ toDim 2) 0 0 1.0 `shouldSatisfy` not . isNothing
-      ketBra (fromJust $ toDim 2) 0 1 1.0 `shouldSatisfy` not . isNothing
+      ketBra (fromJust $ toDim 2) 0 0 1.0 `shouldSatisfy` notNothing
+      ketBra (fromJust $ toDim 2) 0 1 1.0 `shouldSatisfy` notNothing
     it "Cannot be constructed from negative indices." $ do
       ketBra (fromJust $ toDim 2) (-1) 0 1.0 `shouldBe` Nothing
       ketBra (fromJust $ toDim 2) 0 (-1) 1.0 `shouldBe` Nothing
@@ -60,7 +65,7 @@ spec = do
     it "Returns something when dimensions match." $ do
       let v = (VU.fromList [1.3, 3.4]) :: Ket
       let d = fromJust $ toDim 2
-      apply (identityMatrix d) v `shouldSatisfy` not . isNothing
+      apply (identityMatrix d) v `shouldSatisfy` notNothing
 
     describe "Identity" $ do
       it "Returns vectors unchanged." $ do
