@@ -21,6 +21,16 @@ spec = do
       getDim (scale 3.7 $ identity (fromJust $ toDim 2))
         `shouldBe` (fromJust $ toDim 2)
 
+  describe "ketBra" $ do
+    it "Can be constructed from valid indices." $ do
+      ketBra (fromJust $ toDim 2) 0 0 1.0 `shouldSatisfy` not . isNothing
+      ketBra (fromJust $ toDim 2) 0 1 1.0 `shouldSatisfy` not . isNothing
+    it "Cannot be constructed from negative indices." $ do
+      ketBra (fromJust $ toDim 2) (-1) 0 1.0 `shouldBe` Nothing
+      ketBra (fromJust $ toDim 2) 0 (-1) 1.0 `shouldBe` Nothing
+    it "Cannot be constructed from indices that are too large." $ do
+      ketBra (fromJust $ toDim 2) (2) 0 1.0 `shouldBe` Nothing
+
   describe "kron" $ do
     it "Multiplies dimensions." $ do
       getDim (

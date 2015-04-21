@@ -1,6 +1,7 @@
 module HMbo.LinearOp(
     zero,
     identity,
+    ketBra,
     getDim,
     toDim,
     fromDim,
@@ -34,6 +35,12 @@ zero :: Dim -> LinearOp
 zero d = Plus d []
 identity :: Dim -> LinearOp
 identity d = ScaledId d 1.0
+ketBra:: Dim -> Int -> Int -> Amplitude -> Maybe LinearOp
+ketBra d i j a | i >= 0 && i < d' && j >= 0 && j < d' = Just $
+                  KetBra d (SparseMatrixEntry i j a)
+               | otherwise = Nothing
+  where
+    d' = fromDim d
 
 getDim :: LinearOp -> Dim
 getDim (Kron d _ _) = d
