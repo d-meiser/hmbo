@@ -1,4 +1,5 @@
 module HMbo.LinearOp(
+    LinearOp,
     zero,
     identity,
     sigmaX,
