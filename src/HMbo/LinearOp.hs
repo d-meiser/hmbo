@@ -1,6 +1,11 @@
 module HMbo.LinearOp(
     zero,
     identity,
+    sigmaX,
+    sigmaY,
+    sigmaZ,
+    sigmaPlus,
+    sigmaMinus,
     ketBra,
     getDim,
     toDim,
@@ -18,6 +23,8 @@ import HMbo.Dim
 import HMbo.Amplitude
 import HMbo.Ket
 import qualified Data.Vector.Unboxed as VU
+import Data.Complex
+import Control.Monad (liftM2)
 
 newtype MatrixElement = MatrixElement Amplitude
   deriving(Show)
@@ -167,4 +174,31 @@ apply (Kron _ op1 op2) x = do
     applyOne :: LinearOp -> Int -> Ket -> Maybe Ket
     applyOne op d v = VU.concat `fmap`
       (sequence $ map (\x' -> apply op x') (subVectors d v))
+
+
+sigmaX :: LinearOp
+Just (Just sigmaX) = liftM2 add (ketBra d 0 1 1.0) (ketBra d 1 0 1.0)
+  where
+    Just d = toDim 2
+
+sigmaY :: LinearOp
+Just (Just sigmaY) = liftM2 add (ketBra d 0 1 (0.0 :+ 1.0))
+                                (ketBra d 1 0 (0.0 :+ (-1.0)))
+  where
+    Just d = toDim 2
+
+sigmaZ :: LinearOp
+Just (Just sigmaZ) = liftM2 add (ketBra d 1 1 1.0) (ketBra d 0 0 (-1.0))
+  where
+    Just d = toDim 2
+
+sigmaPlus :: LinearOp
+Just sigmaPlus = ketBra d 1 0 1.0
+  where
+    Just d = toDim 2
+
+sigmaMinus :: LinearOp
+Just sigmaMinus = ketBra d 0 1 1.0
+  where
+    Just d = toDim 2
 
