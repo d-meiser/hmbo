@@ -68,7 +68,6 @@ source-repository   head
   type:     git
   location: https://github.com/d-meiser/hmbo
 
-
 test-suite tests
   ghc-options: -Wall
   default-extensions:  OverloadedStrings
@@ -78,5 +77,15 @@ test-suite tests
   build-depends:       base,
                        hmbo,
                        hspec >= 1.8,
+                       vector
+  default-language:    Haskell2010  
+
+test-suite examples
+  ghc-options: -Wall
+  type: exitcode-stdio-1.0
+  main-is: TwoLevelAtom.lhs
+  hs-source-dirs: examples
+  build-depends:       base,
+                       hmbo,
                        vector
   default-language:    Haskell2010  
