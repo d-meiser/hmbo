@@ -61,6 +61,7 @@ the general case.
 We construct the Hamiltonian out of elementary operators by means of
 the {\tt scale} and {\tt add}:
 \begin{code}
+buildHamiltonian :: Amplitude -> Amplitude -> LinearOp
 buildHamiltonian delta g = fromJust $
   ((0.5 * delta) `scale` sigmaZ) `add` ((0.5 * g) `scale` sigmaX)
 \end{code}
@@ -113,7 +114,7 @@ The basis states are straight forward to construct:
 basisState :: Int -> Int -> Ket
 basisState d i = VU.fromList [kroneckerDelta i j | j <- [0..(d - 1)]]
   where
-    kroneckerDelta i j | i == j = 1.0
+    kroneckerDelta m n | m == n = 1.0
                        | otherwise = 0.0
 \end{code}
 
