@@ -64,6 +64,6 @@ script:
 after_script:
   - |
     if [ "$SUBMIT_COVERAGE" = "TRUE" ]; then
-      hpc-coveralls --coverage-mode=StrictlyFullLines --exclude-dir=tests tests
+      hpc-coveralls --coverage-mode=StrictlyFullLines --exclude-dir=tests tests examples
     fi
 
