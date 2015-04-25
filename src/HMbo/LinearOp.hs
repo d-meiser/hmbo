@@ -77,30 +77,30 @@ mul' (KetBra d m1) (KetBra _ m2) =
         | c1 == r2 = Just $ SparseMatrixEntry r1 c2 (a1 * a2)
         | otherwise = Nothing
       theProduct = mProd m1 m2
-mul' (Kron dim a b) (Kron _ c d) 
+mul' (Kron dim a b) (Kron _ c d)
         | dimsCompatible = Kron  dim (mul' a c) (mul' b d)
         | otherwise = Plus dim []
   where
     dimsCompatible = getDim a == getDim c && getDim b == getDim d
 
-mul' op1@(KetBra dim _) op2@(Kron _ _ _) = Plus dim products
+mul' op1@(KetBra dim _) op2@(Kron{}) = Plus dim products
   where
-    products = filter isNonZero $
-      [mul' op1 op2' | op2' <- 
-        [KetBra dim entry | entry <- (toSparseEntries op2)]]
+    products = filter isNonZero
+      [mul' op1 op2' | op2' <-
+        [KetBra dim entry | entry <- toSparseEntries op2]]
     isNonZero = not . isZero
 
 mul' op1@(Kron dim _ _ ) op2@(KetBra _ _) = Plus dim products
   where
-    products = filter isNonZero $
-      [mul' op1' op2 | op1' <- 
-        [KetBra dim entry | entry <- (toSparseEntries op1)]]
+    products = filter isNonZero
+      [mul' op1' op2 | op1' <-
+        [KetBra dim entry | entry <- toSparseEntries op1]]
     isNonZero = not . isZero
 
 toSparseEntries :: LinearOp -> [SparseMatrixEntry]
 toSparseEntries (Kron _ op1 op2) = [combine se1 se2 |
-                                     se1 <- (toSparseEntries op1),
-                                     se2 <- (toSparseEntries op2)]
+                                     se1 <- toSparseEntries op1,
+                                     se2 <- toSparseEntries op2]
   where
     combine :: SparseMatrixEntry -> SparseMatrixEntry -> SparseMatrixEntry
     combine
@@ -108,9 +108,9 @@ toSparseEntries (Kron _ op1 op2) = [combine se1 se2 |
       (SparseMatrixEntry r2 c2 a2) = SparseMatrixEntry (r1 * d2 + r2) (c1 * d2 + c2) (a1 * a2)
       where
         d2 = fromDim $ getDim op2
-toSparseEntries (Plus _ ops) = concat $ map toSparseEntries ops
+toSparseEntries (Plus _ ops) = concatMap toSparseEntries ops
 toSparseEntries (KetBra _ op) = [op]
-toSparseEntries (ScaledId d a) = [SparseMatrixEntry i i a | i <- [0..((fromDim d) - 1)]]
+toSparseEntries (ScaledId d a) = [SparseMatrixEntry i i a | i <- [0..(fromDim d - 1)]]
 
 identityMatrix :: Dim -> LinearOp
 identityMatrix d = ScaledId d 1.0
@@ -135,8 +135,8 @@ scale a (ScaledId d me) = ScaledId d (a * me)
 
 kron :: LinearOp -> LinearOp -> LinearOp
 kron (ScaledId d1 a1) (ScaledId d2 a2) = ScaledId (d1 * d2) (a1 * a2)
-kron op1 op2 | isZero op1 || isZero op2 = Plus ((getDim op1) * (getDim op2)) []
-             | otherwise = Kron ((getDim op1) * (getDim op2)) op1 op2
+kron op1 op2 | isZero op1 || isZero op2 = Plus (getDim op1 * getDim op2) []
+             | otherwise = Kron (getDim op1 * getDim op2) op1 op2
 
 apply :: LinearOp -> Ket -> Maybe Ket
 apply (ScaledId d a) x | fromDim d == VU.length x = Just $ VU.map (a *) x
@@ -147,12 +147,12 @@ apply (KetBra d (SparseMatrixEntry i j a)) x
   | otherwise = Nothing
     where
       yfunc :: Int -> Amplitude
-      yfunc i' | i' == i = a * ((VU.!) x j)
+      yfunc i' | i' == i = a * (VU.!) x j
                | otherwise = 0
 apply (Plus d ops) x | fromDim d == VU.length x =
                         foldl addVecs 
                           (Just zeroVec)
-                          (map (\op -> apply op x) ops)
+                          (map (`apply` x) ops)
                      | otherwise = Nothing
      where
       addVecs :: Maybe Ket -> Maybe Ket -> Maybe Ket
@@ -171,10 +171,9 @@ apply (Kron _ op1 op2) x = do
     subVectors :: Int -> Ket -> [Ket]
     subVectors d v = [VU.slice (d * j) d v | j <- [0..(numVecs - 1)]]
       where
-        numVecs = (VU.length v) `div` d
+        numVecs = VU.length v `div` d
     applyOne :: LinearOp -> Int -> Ket -> Maybe Ket
-    applyOne op d v = VU.concat `fmap`
-      (sequence $ map (\x' -> apply op x') (subVectors d v))
+    applyOne op d v = VU.concat `fmap` mapM (apply op) (subVectors d v)
 
 
 sigmaX :: LinearOp

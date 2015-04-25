@@ -1,12 +1,7 @@
-module HMbo (
-     module HMbo.LinearOp
-    ,module HMbo.Dim
-    ,module HMbo.Ket
-    ,module HMbo.Amplitude
-    ) where
+module HMbo (module X) where
 
-import HMbo.LinearOp
-import HMbo.Dim
-import HMbo.Ket
-import HMbo.Amplitude
+import HMbo.LinearOp as X
+import HMbo.Dim as X
+import HMbo.Ket as X
+import HMbo.Amplitude as X
 

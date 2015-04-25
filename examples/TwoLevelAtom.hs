@@ -24,9 +24,9 @@ matrixElement psi a phi = VU.foldl1 (+) $ VU.zipWith (*) psi' aPhi
 main :: IO ()
 main = do
   putStr "Detuning: "
-  putStrLn $ show $ realPart detuning
+  print (realPart detuning)
   putStr "Coupling constant: "
-  putStrLn $ show $ realPart g
+  print (realPart g)
   let basis = [basisState 2 i | i <- [0..(2-1)]]
   let matrix = [[matrixElement psi hamiltonian phi |
                  phi <- basis] | psi <- basis]
