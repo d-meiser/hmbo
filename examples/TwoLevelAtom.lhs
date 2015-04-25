@@ -25,6 +25,23 @@
                {>>}{{>>}}2 {>>=}{{>>=}}2
                {|}{{$\mid$}}1
     }
+\lstnewenvironment{spec}
+    {\lstset{}%
+      \csname lst@SetFirstLabel\endcsname}
+    {\csname lst@SaveFirstLabel\endcsname}
+    \lstset{
+      basicstyle=\small\ttfamily,
+      flexiblecolumns=false,
+      basewidth={0.5em,0.45em},
+      literate={+}{{$+$}}1 {/}{{$/$}}1 {*}{{$*$}}1 {=}{{$=$}}1
+               {>}{{$>$}}1 {<}{{$<$}}1 {\\}{{$\lambda$}}1
+               {\\\\}{{\char`\\\char`\\}}1
+               {->}{{$\rightarrow$}}2 {>=}{{$\geq$}}2 {<-}{{$\leftarrow$}}2
+               {<=}{{$\leq$}}2 {=>}{{$\Rightarrow$}}2
+               {\ .}{{$\circ$}}2 {\ .\ }{{$\circ$}}2
+               {>>}{{>>}}2 {>>=}{{>>=}}2
+               {|}{{$\mid$}}1
+    }
 
 \begin{document}
 
@@ -71,9 +88,9 @@ library.  Note that the {\tt add} function does not directly return a
 operators to be added to one another have different dimensions.  In that
 case we cannot construct a meaningful sum of the two operators.
 Therefore the type of the {\tt add} function is
-\begin{code}%
+\begin{spec}
 add :: LinearOp -> LinearOp -> Maybe LinearOp
-\end{code}
+\end{spec}
 We return {\tt Nothing} if the addition of the two linear operators
 fails.  For the purposes of this example we get rid of the {\tt Just} in
 the result by means of the function
@@ -153,7 +170,7 @@ printMatrix m = putStrLn $ unlines $
 \end{code}
 
 The program generates the following output:
-\begin{code}%
+\begin{spec}
 *Main> :l TwoLevelAtom.lhs
 [1 of 1] Compiling Main             ( TwoLevelAtom.lhs, interpreted )
 Ok, modules loaded: Main.
@@ -166,5 +183,5 @@ Coupling constant: 6.0
 Matrix:
 2.0 3.0
 3.0 2.0
-\end{code}
+\end{spec}
 \end{document}
