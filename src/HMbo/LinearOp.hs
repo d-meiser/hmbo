@@ -16,7 +16,10 @@ module HMbo.LinearOp(
     scale,
     kron,
     apply,
-    isZero
+    isZero,
+    SimpleOperator,
+    simplify,
+    showSO
     ) where
 
 import HMbo.Dim
@@ -24,10 +27,8 @@ import HMbo.Amplitude
 import HMbo.Ket
 import qualified Data.Vector.Unboxed as VU
 import Data.Complex
+import Data.List (intercalate)
 import Control.Monad (liftM2)
-
-newtype MatrixElement = MatrixElement Amplitude
-  deriving(Show)
 
 data SparseMatrixEntry = SparseMatrixEntry Int Int Amplitude
   deriving(Show, Eq)
@@ -197,4 +198,32 @@ sigmaMinus :: LinearOp
 Just sigmaMinus = ketBra d 0 1 1.0
   where
     Just d = toDim 2
+
+
+newtype SimpleOperator = SimpleOperator [Slice]
+  deriving (Show)
+
+data Slice = IdentityMatrix Dim Amplitude
+           | SparseMatrix Dim SparseMatrixEntry
+  deriving (Show)
+
+simplify :: LinearOp -> [SimpleOperator]
+simplify (ScaledId d a) = [SimpleOperator [IdentityMatrix d a]]
+simplify (KetBra d sme) = [SimpleOperator [SparseMatrix d sme]]
+simplify (Plus _ ops) = concatMap simplify ops
+simplify (Kron _ op1 op2) = [simpleKron sop1 sop2
+                            | sop1 <- simplify op1
+                            , sop2 <- simplify op2]
+  where
+    simpleKron (SimpleOperator s1) (SimpleOperator s2) =
+      SimpleOperator (s1 ++ s2)
+
+showSO :: SimpleOperator -> String
+showSO (SimpleOperator slices) = intercalate " X " $ map showSlice slices
+showSlice :: Slice -> String
+showSlice (IdentityMatrix d a) =
+  "(" ++ show a ++ ") I(" ++ show (fromDim d) ++ ")"
+showSlice (SparseMatrix d (SparseMatrixEntry i j a)) =
+  "(" ++ show a ++ ") " ++
+  "|" ++ show i ++ "><" ++ show j ++ "|_(" ++ show (fromDim d) ++ ")"
 

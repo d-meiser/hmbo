@@ -86,3 +86,9 @@ spec = do
       let w = VU.fromList [1, 3, 2, 4] :: Ket
       transpose 2 v `shouldBe` w
       
+  describe "simplify" $ do
+    it "Produces a single entry when applied to an identity matrix" $
+      length (simplify (eye 2)) `shouldBe` 1
+    it "Produces a single entry when applied to a KetBra" $
+      length (simplify (fromJust $ ketBra 2 0 0 1.0)) `shouldBe` 1
+      
