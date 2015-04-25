@@ -64,6 +64,9 @@ script:
 after_script:
   - |
     if [ "$SUBMIT_COVERAGE" = "TRUE" ]; then
-      travis_retry hpc-coveralls --coverage-mode=StrictlyFullLines --exclude-dir=tests tests examples
+      travis_retry hpc-coveralls \
+        --coverage-mode=StrictlyFullLines \
+        --exclude-dir=tests tests \
+        example_TwoLevelAtom example_SpinChain
     fi
 
