@@ -103,9 +103,9 @@ This construction can be expressed directly using the hmbo library:
 \begin{code}
 embed :: LinearOp -> Int -> HilbertSpace -> Maybe LinearOp
 embed op j (d:ds) | j == 0 && d == getDim op =
-                    (op `kron`) `fmap` (embed op (j - 1) ds)
+                    (op `kron`) `fmap` embed op (j - 1) ds
                   | otherwise =
-                    ((identity d) `kron`) `fmap` (embed op (j - 1) ds)
+                    (identity d `kron`) `fmap` embed op (j - 1) ds
 embed _ _ [] = Just $ identity $ fromJust (toDim 1)
 \end{code}
 We wish to embed the single particle operator {\tt op} into the $j$-th
@@ -143,8 +143,8 @@ buildInteractionPiece :: LinearOp -> Int -> Amplitude -> LinearOp
 buildInteractionPiece op n coupling = scale ((-0.5) * coupling) $ fromJust $
   foldlM add (zero totalDim)
     [fromJust (
-     (fromJust (embed op j space)) `mul`
-     (fromJust (embed op ((j + 1) `mod` n) space))) | j <- [0..(n - 1)]]
+     fromJust (embed op j space) `mul`
+     fromJust (embed op ((j + 1) `mod` n) space)) | j <- [0..(n - 1)]]
   where
     space = spinSpace n
     totalDim = fromJust $ toDim (2^n)
@@ -169,11 +169,11 @@ To illustrate how the operator might be used we compute the expectation
 value of the Hamiltonian in the state with all spins in the down state:
 \begin{code}
 main :: IO ()
-main = do
-  print [matrixElement
-           (basisState (2^n) 0)
-           (buildH n 1.0 2.0 3.0 4.0)
-           (basisState (2^n) 0) | n <- [1..10]]
+main = print
+  [matrixElement
+     (basisState (2^n) 0)
+     (buildH n 1.0 2.0 3.0 4.0)
+     (basisState (2^n) 0) | n <- [1..10]]
 \end{code}
 
 The functions {\tt matrixElement} and {\tt basisState} were introduced
