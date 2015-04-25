@@ -57,7 +57,7 @@ First, we include some modules:
 module Main where
 
 import qualified Data.Vector.Unboxed as VU
-import Data.Complex (conjugate, Complex(..))
+import Data.Complex (conjugate)
 import Data.Maybe (fromJust)
 import Data.Foldable (foldlM)
 import HMbo
@@ -106,7 +106,7 @@ embed op j (d:ds) | j == 0 && d == getDim op =
                     (op `kron`) `fmap` (embed op (j - 1) ds)
                   | otherwise =
                     ((identity d) `kron`) `fmap` (embed op (j - 1) ds)
-embed op j [] = Just $ identity $ fromJust (toDim 1)
+embed _ _ [] = Just $ identity $ fromJust (toDim 1)
 \end{code}
 We wish to embed the single particle operator {\tt op} into the $j$-th
 ``slot'' in the product space.  We recurse through the dimensions in the
