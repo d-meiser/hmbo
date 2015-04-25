@@ -1,7 +1,7 @@
 module HMbo.LinearOp(
     LinearOp,
     zero,
-    identity,
+    eye,
     sigmaX,
     sigmaY,
     sigmaZ,
@@ -16,7 +16,6 @@ module HMbo.LinearOp(
     scale,
     kron,
     apply,
-    identityMatrix,
     isZero
     ) where
 
@@ -41,8 +40,8 @@ data LinearOp = Kron Dim LinearOp LinearOp
 
 zero :: Dim -> LinearOp
 zero d = Plus d []
-identity :: Dim -> LinearOp
-identity d = ScaledId d 1.0
+eye :: Dim -> LinearOp
+eye d = ScaledId d 1.0
 ketBra:: Dim -> Int -> Int -> Amplitude -> Maybe LinearOp
 ketBra d i j a | i >= 0 && i < d' && j >= 0 && j < d' = Just $
                   KetBra d (SparseMatrixEntry i j a)
@@ -111,9 +110,6 @@ toSparseEntries (Kron _ op1 op2) = [combine se1 se2 |
 toSparseEntries (Plus _ ops) = concatMap toSparseEntries ops
 toSparseEntries (KetBra _ op) = [op]
 toSparseEntries (ScaledId d a) = [SparseMatrixEntry i i a | i <- [0..(fromDim d - 1)]]
-
-identityMatrix :: Dim -> LinearOp
-identityMatrix d = ScaledId d 1.0
 
 isZero ::LinearOp -> Bool
 isZero (Plus _ []) = True

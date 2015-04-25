@@ -105,8 +105,8 @@ embed :: LinearOp -> Int -> HilbertSpace -> Maybe LinearOp
 embed op j (d:ds) | j == 0 && d == getDim op =
                     (op `kron`) `fmap` embed op (j - 1) ds
                   | otherwise =
-                    (identity d `kron`) `fmap` embed op (j - 1) ds
-embed _ _ [] = Just $ identity $ fromJust (toDim 1)
+                    (eye d `kron`) `fmap` embed op (j - 1) ds
+embed _ _ [] = Just $ eye $ fromJust (toDim 1)
 \end{code}
 We wish to embed the single particle operator {\tt op} into the $j$-th
 ``slot'' in the product space.  We recurse through the dimensions in the

@@ -17,9 +17,9 @@ spec = do
 
   describe "Identity Matrix" $ do
     it "Can be built from a dimension." $
-      getDim (identity (fromJust (toDim 2))) `shouldBe` fromJust (toDim 2)
+      getDim (eye (fromJust (toDim 2))) `shouldBe` fromJust (toDim 2)
     it "Does not change dimension when scaled." $
-      getDim (scale 3.7 $ identity (fromJust (toDim 2)))
+      getDim (scale 3.7 $ eye (fromJust (toDim 2)))
         `shouldBe` fromJust (toDim 2)
 
   describe "ketBra" $ do
@@ -35,19 +35,19 @@ spec = do
   describe "kron" $ do
     it "Multiplies dimensions." $
       getDim (
-          kron (identity (fromJust (toDim 3)))
-          (identity (fromJust $ toDim 3))) `shouldBe` fromJust (toDim 9)
+          kron (eye (fromJust (toDim 3)))
+          (eye (fromJust $ toDim 3))) `shouldBe` fromJust (toDim 9)
     it "Results in ScaledId when both of the operators are identites." $
       kron
-        (identity (fromJust (toDim 3)))
-        (identity (fromJust (toDim 3)))
-          `shouldBe` identity (fromJust (toDim 9))
+        (eye (fromJust (toDim 3)))
+        (eye (fromJust (toDim 3)))
+          `shouldBe` eye (fromJust (toDim 9))
 
   describe "add" $
     it "Results in Nothing if dimensions don't match." $
       add
-        (identity (fromJust (toDim 2)))
-        (identity (fromJust (toDim 3)))
+        (eye (fromJust (toDim 2)))
+        (eye (fromJust (toDim 3)))
           `shouldBe`
             Nothing
 
@@ -55,17 +55,17 @@ spec = do
     it "Returns nothing when dimensions don't match." $ do
       let v = VU.fromList [1.3, 3.4] :: Ket
       let d = fromJust $ toDim 3
-      apply (identityMatrix d) v `shouldBe` Nothing
+      apply (eye d) v `shouldBe` Nothing
     it "Returns something when dimensions match." $ do
       let v = VU.fromList [1.3, 3.4] :: Ket
       let d = fromJust $ toDim 2
-      apply (identityMatrix d) v `shouldSatisfy` isJust
+      apply (eye d) v `shouldSatisfy` isJust
 
     describe "Identity" $
       it "Returns vectors unchanged." $ do
         let v = VU.fromList [1.3, 3.4] :: Ket
         let d = fromJust $ toDim 2
-        apply (identityMatrix d) v `shouldBe` Just v
+        apply (eye d) v `shouldBe` Just v
 
     describe "Zero operator" $
       it "Returns 0." $ do
