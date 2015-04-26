@@ -2,3 +2,11 @@
 *cabal.sandbox.config
 dist
 *swp
+*.pdf
+*.log
+*.o
+*.s
+*.aux
+*.hi
+examples/SpinChain
+examples/TwoLevelAtom
