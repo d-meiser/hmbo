@@ -1,3 +1,6 @@
+\section{Linear Operators}
+
+\begin{code}
 module HMbo.LinearOp(
     LinearOp,
     zero,
@@ -310,3 +313,4 @@ showSlice (IdentityMatrix d) = "I(" ++ show (fromDim d) ++ ")"
 showSlice (NonZeroLocation d i j) =
   "|" ++ show i ++ "><" ++ show j ++ "|_(" ++ show (fromDim d) ++ ")"
 
+\end{code}
