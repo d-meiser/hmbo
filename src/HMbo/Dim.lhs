@@ -1,3 +1,7 @@
+\section{Dim}
+\label{sec:Dim}
+
+\begin{code}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module HMbo.Dim (
     Dim(unPositive),
@@ -13,4 +17,4 @@ toDim d = if d < 1 then Nothing else Just (Dim d)
 
 fromDim :: Dim -> Int
 fromDim (Dim d) = d
-
+\end{code}

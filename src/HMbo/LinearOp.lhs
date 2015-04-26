@@ -1,4 +1,5 @@
 \section{Linear Operators}
+\label{sec:LinearOperators}
 
 \begin{code}
 module HMbo.LinearOp(
