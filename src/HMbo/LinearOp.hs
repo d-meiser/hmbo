@@ -215,12 +215,24 @@ simplify (ScaledId d a) = [SimpleOperator a [IdentityMatrix d]]
 simplify (KetBra d (SparseMatrixEntry i j a)) =
   [SimpleOperator a [NonZeroLocation d i j]]
 simplify (Plus _ ops) = concatMap simplify ops
-simplify (Kron _ op1 op2) = [simpleKron sop1 sop2
-                            | sop1 <- simplify op1
-                            , sop2 <- simplify op2]
+simplify (Kron _ op1 op2) = map mergePairs
+    [simpleKron sop1 sop2 | sop1 <- simplify op1 , sop2 <- simplify op2]
   where
     simpleKron (SimpleOperator a1 s1) (SimpleOperator a2 s2) =
       SimpleOperator (a1 * a2) (s1 ++ s2)
+    mergePairs :: SimpleOperator -> SimpleOperator
+    mergePairs (SimpleOperator a slices) = SimpleOperator a $
+      mergePairs' slices
+    mergePairs' ((IdentityMatrix d1):(IdentityMatrix d2):rest) =
+      mergePairs' ((IdentityMatrix (d1 * d2)):rest)
+    mergePairs' ((NonZeroLocation d1 i1 j1):(NonZeroLocation d2 i2 j2):rest) =
+      mergePairs'
+        ((NonZeroLocation (d1 * d2) (i1 * d2' + i2) (j1 * d2' + j2)):rest)
+      where
+        d2' = fromDim d2
+    mergePairs' [] = []
+    mergePairs' (s:ss) = s:(mergePairs' ss)
+
 
 sApply :: [SimpleOperator] -> Ket -> Maybe Ket
 sApply ops k
