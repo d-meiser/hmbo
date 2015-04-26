@@ -233,6 +233,19 @@ sDim (IdentityMatrix d') = fromDim d'
 sDim (NonZeroLocation d' _ _) = fromDim d'
 sApply' :: SimpleOperator -> Ket -> Maybe Ket
 sApply' (SimpleOperator a []) k = Just $ VU.map (a *) k
+sApply' (SimpleOperator a [s]) k
+  | d == VU.length k =
+    case s of
+      IdentityMatrix _ -> Just $ VU.map (a *) k
+      NonZeroLocation _ i j ->
+        Just $ VU.concat
+          [VU.replicate i 0
+          ,VU.singleton (a * ((VU.!) k j))
+          ,VU.replicate (d - (i + 1)) 0
+          ]
+  | otherwise = Nothing
+  where
+    d = sDim s
 sApply' (SimpleOperator a (s:ss)) k
   | totalDim == VU.length k =
     case s of
