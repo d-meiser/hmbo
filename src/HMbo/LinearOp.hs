@@ -19,7 +19,8 @@ module HMbo.LinearOp(
     isZero,
     SimpleOperator,
     simplify,
-    showSO
+    showSO,
+    sApply
     ) where
 
 import HMbo.Dim
@@ -29,6 +30,7 @@ import qualified Data.Vector.Unboxed as VU
 import Data.Complex
 import Data.List (intercalate)
 import Control.Monad (liftM2)
+import Data.Maybe (fromJust)
 
 data SparseMatrixEntry = SparseMatrixEntry Int Int Amplitude
   deriving(Show, Eq)
@@ -217,6 +219,41 @@ simplify (Kron _ op1 op2) = [simpleKron sop1 sop2
   where
     simpleKron (SimpleOperator s1) (SimpleOperator s2) =
       SimpleOperator (s1 ++ s2)
+
+sApply :: [SimpleOperator] -> Ket -> Maybe Ket
+sApply ops k = foldl vAdd vZero `fmap` mapM ((flip sApply') k) ops
+  where
+    vAdd :: Ket -> Ket -> Ket
+    vAdd = VU.zipWith (+)
+    vZero = VU.replicate dim 0
+    dim = VU.length k
+sDim :: Slice -> Int
+sDim (IdentityMatrix d' _) = fromDim d'
+sDim (SparseMatrix d' _) = fromDim d'
+sApply' :: SimpleOperator -> Ket -> Maybe Ket
+sApply' (SimpleOperator []) k = Just k
+sApply' (SimpleOperator (s:ss)) k
+  | totalDim == VU.length k =
+    case s of
+      IdentityMatrix _ a ->
+        Just $
+          VU.concat $
+          map (VU.map (a *) . fromJust .  sApply' (SimpleOperator ss)) $
+          [VU.slice (i * blockSize) blockSize k | i <- [0..(d - 1)]]
+      SparseMatrix _ (SparseMatrixEntry i j a) ->
+        Just $
+          VU.concat $
+          [VU.replicate (i * blockSize) 0
+          ,VU.map (a *) . fromJust $ sApply'
+             (SimpleOperator ss)
+             (VU.slice (j * blockSize) blockSize k)
+          ,VU.replicate (totalDim - (i + 1) * blockSize) 0
+          ]
+  | otherwise = Nothing
+  where
+    blockSize = product (map sDim ss)
+    d = sDim s
+    totalDim = d * blockSize
 
 showSO :: SimpleOperator -> String
 showSO (SimpleOperator slices) = intercalate " X " $ map showSlice slices
