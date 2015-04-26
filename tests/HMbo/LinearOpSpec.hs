@@ -26,6 +26,23 @@ aij a i j = matrixElement (basisState d i) a (basisState d j)
 isClose :: Double -> Amplitude -> Amplitude -> Bool
 isClose tol a b = (realPart $ abs (a - b)) < tol
 
+defTol :: Double
+defTol = 1.0e-12
+
+isHermitian :: Double -> LinearOp -> Bool
+isHermitian tol a =
+  and [isClose tol (aij a i j) (conjugate (aij a j i))
+      | i <- [0..(d-1)], j <- [0..i]]
+  where
+    d = fromDim $ getDim a
+
+isDiagonal :: Double -> LinearOp -> Bool
+isDiagonal tol a =
+  and [i == j || isClose tol 0.0 (aij a i j)
+      | i <- [0..(d - 1)], j <- [0..(d - 1)]]
+  where
+    d = fromDim $ getDim a
+
 spec :: Spec
 spec = do
   describe "Null Matrix" $ do
@@ -62,14 +79,35 @@ spec = do
         (eye (fromJust (toDim 3)))
         (eye (fromJust (toDim 3)))
           `shouldBe` eye (fromJust (toDim 9))
+    it
+      "Produces Hermitian operators when applied to Hermitian operators." $
+      do
+        kron sigmaX sigmaY `shouldSatisfy` isHermitian defTol
+        kron sigmaX (eye (fromJust $ toDim 4)) `shouldSatisfy`
+          isHermitian defTol
+    it
+      "Produces a diagonal operator when supplied with diagonal operators." $
+      do
+        kron sigmaZ sigmaZ `shouldSatisfy` isDiagonal defTol
+        kron (eye 3) sigmaZ `shouldSatisfy` isDiagonal defTol
+        kron sigmaZ (eye 3) `shouldSatisfy` isDiagonal defTol
 
-  describe "add" $
+  describe "add" $ do
     it "Results in Nothing if dimensions don't match." $
       add
         (eye (fromJust (toDim 2)))
         (eye (fromJust (toDim 3)))
-          `shouldBe`
-            Nothing
+          `shouldBe` Nothing
+    it "Adds matrix entries." $ do
+      let op1 = sigmaZ `kron` (eye 2)
+      let op2 = sigmaX `kron` sigmaY
+      let theSum = fromJust $ op1 `add` op2
+      aij theSum 0 1 `shouldSatisfy`
+        isClose defTol ((aij op1 0 1) + (aij op2 0 1))
+      aij theSum 2 1 `shouldSatisfy`
+        isClose defTol ((aij op1 2 1) + (aij op2 2 1))
+      aij theSum 0 0 `shouldSatisfy`
+        isClose defTol ((aij op1 0 0) + (aij op2 0 0))
 
   describe "apply" $ do
     it "Returns nothing when dimensions don't match." $ do
@@ -95,20 +133,42 @@ spec = do
         fromJust (apply (zero d) v) `shouldBe` w
 
   describe "transpose" $ do
-    it "Returns the same vector when transposed with pivot 1" $ do
+    it "Returns the same vector when transposed with pivot 1." $ do
       let v = VU.fromList [1.3, 3.4] :: Ket
       transpose 1 v `shouldBe` v
-    it "Returns the same vector when transposed with pivot (length v)" $ do
+    it "Returns the same vector when transposed with pivot (length v)." $ do
       let v = VU.fromList [1.3, 3.4] :: Ket
       transpose (VU.length v) v `shouldBe` v
     it "Works for a typical case" $ do
       let v = VU.fromList [1, 2, 3, 4] :: Ket
       let w = VU.fromList [1, 3, 2, 4] :: Ket
       transpose 2 v `shouldBe` w
-      
+
+  describe "sigmaZ" $ do
+    it "Has no off-diagonal elements." $
+      sigmaZ `shouldSatisfy` isDiagonal defTol
+    it "Considers the 0 state as spin down." $ do
+      aij sigmaZ 0 0 `shouldSatisfy` isClose defTol (-1.0)
+    it "Considers the 1 state as spin up." $ do
+      aij sigmaZ 1 1 `shouldSatisfy` isClose defTol (1.0)
+
+  describe "sigmaX" $ do
+    it "Has no diagonal elements." $ do
+      aij sigmaX 0 0 `shouldSatisfy` isClose defTol 0.0
+      aij sigmaX 1 1 `shouldSatisfy` isClose defTol 0.0
+    it "Is Hermitian." $
+      sigmaX `shouldSatisfy` isHermitian defTol
+
+  describe "sigmaY" $ do
+    it "Has no diagonal elements." $ do
+      aij sigmaY 0 0 `shouldSatisfy` isClose defTol 0.0
+      aij sigmaY 1 1 `shouldSatisfy` isClose defTol 0.0
+    it "Is Hermitian." $
+      sigmaY `shouldSatisfy` isHermitian defTol
+
   describe "simplify" $ do
-    it "Produces a single entry when applied to an identity matrix" $
+    it "Produces a single entry when applied to an identity matrix." $
       length (simplify (eye 2)) `shouldBe` 1
-    it "Produces a single entry when applied to a KetBra" $
+    it "Produces a single entry when applied to a KetBra." $
       length (simplify (fromJust $ ketBra 2 0 0 1.0)) `shouldBe` 1
-      
+
