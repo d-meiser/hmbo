@@ -28,7 +28,7 @@ import HMbo.Amplitude
 import HMbo.Ket
 import qualified Data.Vector.Unboxed as VU
 import Data.Complex
-import Data.List (intercalate)
+import Data.List (intercalate,foldl')
 import Control.Monad (liftM2)
 import Data.Maybe (fromJust)
 
@@ -149,7 +149,7 @@ apply (KetBra d (SparseMatrixEntry i j a)) x
       yfunc i' | i' == i = a * (VU.!) x j
                | otherwise = 0
 apply (Plus d ops) x | fromDim d == VU.length x =
-                        foldl addVecs 
+                        foldl' addVecs
                           (Just zeroVec)
                           (map (`apply` x) ops)
                      | otherwise = Nothing
@@ -222,7 +222,7 @@ simplify (Kron _ op1 op2) = [simpleKron sop1 sop2
       SimpleOperator (a1 * a2) (s1 ++ s2)
 
 sApply :: [SimpleOperator] -> Ket -> Maybe Ket
-sApply ops k = foldl vAdd vZero `fmap` mapM ((flip sApply') k) ops
+sApply ops k = foldl' vAdd vZero `fmap` mapM ((flip sApply') k) ops
   where
     vAdd :: Ket -> Ket -> Ket
     vAdd = VU.zipWith (+)
