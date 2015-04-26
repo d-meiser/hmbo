@@ -37,12 +37,12 @@ buildHamiltonian delta g = fromJust $
 \end{code}
 The operators {\tt sigmaZ} and {\tt sigmaX} are provided by the hmbo
 library.  Note that the {\tt add} function does not directly return a
-{\tt LinearOp}.  This is because this function fails if the two
+{\tt ManyBodyOperator}.  This is because this function fails if the two
 operators to be added to one another have different dimensions.  In that
 case we cannot construct a meaningful sum of the two operators.
 Therefore the type of the {\tt add} function is
 \begin{spec}
-add :: LinearOp -> LinearOp -> Maybe LinearOp
+add :: ManyBodyOperator -> ManyBodyOperator -> Maybe ManyBodyOperator
 \end{spec}
 We return {\tt Nothing} if the addition of the two linear operators
 fails.  For the purposes of this example we get rid of the {\tt Just} in
@@ -57,9 +57,9 @@ addition in {\tt buildHamiltonian} were to fail.  In more complicated
 situations, especially when writing a library, it may be necessary to
 handle failures more safely.
 
-Our program simply builds the {\tt LinearOp} corresponding to the two
-level atom Hamiltonian, computes its matrix in the canonical basis, and
-prints the matrix to the screen:
+Our program simply builds the {\tt ManyBodyOperator} corresponding to
+the two level atom Hamiltonian, computes its matrix in the canonical
+basis, and prints the matrix to the screen:
 \begin{code}
 main :: IO ()
 main = do
