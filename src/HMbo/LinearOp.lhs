@@ -1,3 +1,6 @@
+\section{Linear Operators}
+
+\begin{code}
 module HMbo.LinearOp(
     LinearOp,
     zero,
@@ -19,7 +22,9 @@ module HMbo.LinearOp(
     isZero,
     SimpleOperator,
     simplify,
-    showSO
+    showSO,
+    sApply,
+    checkSimpleOp
     ) where
 
 import HMbo.Dim
@@ -27,8 +32,9 @@ import HMbo.Amplitude
 import HMbo.Ket
 import qualified Data.Vector.Unboxed as VU
 import Data.Complex
-import Data.List (intercalate)
+import Data.List (intercalate,foldl')
 import Control.Monad (liftM2)
+import Data.Maybe ()
 
 data SparseMatrixEntry = SparseMatrixEntry Int Int Amplitude
   deriving(Show, Eq)
@@ -147,7 +153,7 @@ apply (KetBra d (SparseMatrixEntry i j a)) x
       yfunc i' | i' == i = a * (VU.!) x j
                | otherwise = 0
 apply (Plus d ops) x | fromDim d == VU.length x =
-                        foldl addVecs 
+                        foldl' addVecs
                           (Just zeroVec)
                           (map (`apply` x) ops)
                      | otherwise = Nothing
@@ -200,30 +206,111 @@ Just sigmaMinus = ketBra d 0 1 1.0
     Just d = toDim 2
 
 
-newtype SimpleOperator = SimpleOperator [Slice]
+data SimpleOperator = SimpleOperator Amplitude [Slice]
   deriving (Show)
 
-data Slice = IdentityMatrix Dim Amplitude
-           | SparseMatrix Dim SparseMatrixEntry
+data Slice = IdentityMatrix Dim
+           | NonZeroLocation Dim Int Int
   deriving (Show)
 
 simplify :: LinearOp -> [SimpleOperator]
-simplify (ScaledId d a) = [SimpleOperator [IdentityMatrix d a]]
-simplify (KetBra d sme) = [SimpleOperator [SparseMatrix d sme]]
+simplify (ScaledId d a) = [SimpleOperator a [IdentityMatrix d]]
+simplify (KetBra d (SparseMatrixEntry i j a)) =
+  [SimpleOperator a [NonZeroLocation d i j]]
 simplify (Plus _ ops) = concatMap simplify ops
-simplify (Kron _ op1 op2) = [simpleKron sop1 sop2
-                            | sop1 <- simplify op1
-                            , sop2 <- simplify op2]
+simplify (Kron _ op1 op2) = map mergePairs
+    [simpleKron sop1 sop2 | sop1 <- simplify op1 , sop2 <- simplify op2]
   where
-    simpleKron (SimpleOperator s1) (SimpleOperator s2) =
-      SimpleOperator (s1 ++ s2)
+    simpleKron (SimpleOperator a1 s1) (SimpleOperator a2 s2) =
+      SimpleOperator (a1 * a2) (s1 ++ s2)
+    mergePairs :: SimpleOperator -> SimpleOperator
+    mergePairs (SimpleOperator a slices) = SimpleOperator a $
+      mergePairs' slices
+    mergePairs' ((IdentityMatrix d1):(IdentityMatrix d2):rest) =
+      mergePairs' ((IdentityMatrix (d1 * d2)):rest)
+    mergePairs' ((NonZeroLocation d1 i1 j1):(NonZeroLocation d2 i2 j2):rest) =
+      mergePairs'
+        ((NonZeroLocation (d1 * d2) (i1 * d2' + i2) (j1 * d2' + j2)):rest)
+      where
+        d2' = fromDim d2
+    mergePairs' [] = []
+    mergePairs' (s:ss) = s:(mergePairs' ss)
+
+
+sApply :: [SimpleOperator] -> Ket -> Maybe Ket
+sApply ops k
+  | dimsOk = Just $ (foldl' vAdd vZero) (map ((flip sApply') k) ops)
+  | otherwise = Nothing
+  where
+    vAdd :: Ket -> Ket -> Ket
+    vAdd = VU.zipWith (+)
+    vZero = VU.replicate dim 0
+    dim = VU.length k
+    dimsOk :: Bool
+    dimsOk = and $ map ((VU.length k ==) . totalDim) ops
+    totalDim :: SimpleOperator -> Int
+    totalDim (SimpleOperator _ ss) = product (map sDim ss)
+
+-- | Checks whether a simple operator can be applied to a Ket
+checkSimpleOp :: SimpleOperator -> Ket -> Bool
+checkSimpleOp (SimpleOperator _ []) k
+  | VU.length k == 1 = True
+  | otherwise = False
+checkSimpleOp (SimpleOperator a (s:ss)) k
+  | totalDim == VU.length k =
+    case s of
+      IdentityMatrix _ ->
+        checkSimpleOp (SimpleOperator a ss) (VU.take blockSize k)
+      NonZeroLocation _ i j ->
+        i >= 0 && i < d && j >= 0 && j < d &&
+          checkSimpleOp (SimpleOperator a ss) (VU.take blockSize k)
+  | otherwise = False
+  where
+    blockSize = product (map sDim ss)
+    d = sDim s
+    totalDim = d * blockSize
+
+sDim :: Slice -> Int
+sDim (IdentityMatrix d') = fromDim d'
+sDim (NonZeroLocation d' _ _) = fromDim d'
+sApply' :: SimpleOperator -> Ket -> Ket
+sApply' (SimpleOperator a []) k = VU.map (a *) k
+sApply' (SimpleOperator a [s]) k =
+  case s of
+    IdentityMatrix _ -> VU.map (a *) k
+    NonZeroLocation _ i j ->
+      VU.concat
+        [VU.replicate i 0
+        ,VU.singleton (a * ((VU.!) k j))
+        ,VU.replicate (d - (i + 1)) 0
+        ]
+  where
+    d = sDim s
+sApply' (SimpleOperator a (s:ss)) k =
+  case s of
+    IdentityMatrix _ ->
+      VU.concat $
+        map (sApply' (SimpleOperator a ss)) $
+        [VU.slice (i * blockSize) blockSize k | i <- [0..(d - 1)]]
+    NonZeroLocation _ i j ->
+        VU.concat $
+        [VU.replicate (i * blockSize) 0
+        ,sApply'
+           (SimpleOperator a ss)
+           (VU.slice (j * blockSize) blockSize k)
+        ,VU.replicate (totalDim - (i + 1) * blockSize) 0
+        ]
+  where
+    blockSize = product (map sDim ss)
+    d = sDim s
+    totalDim = d * blockSize
 
 showSO :: SimpleOperator -> String
-showSO (SimpleOperator slices) = intercalate " X " $ map showSlice slices
+showSO (SimpleOperator a slices) = show a ++ " (" ++
+  intercalate " X " (map showSlice slices) ++ ")"
 showSlice :: Slice -> String
-showSlice (IdentityMatrix d a) =
-  "(" ++ show a ++ ") I(" ++ show (fromDim d) ++ ")"
-showSlice (SparseMatrix d (SparseMatrixEntry i j a)) =
-  "(" ++ show a ++ ") " ++
+showSlice (IdentityMatrix d) = "I(" ++ show (fromDim d) ++ ")"
+showSlice (NonZeroLocation d i j) =
   "|" ++ show i ++ "><" ++ show j ++ "|_(" ++ show (fromDim d) ++ ")"
 
+\end{code}
