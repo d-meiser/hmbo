@@ -1,35 +1,5 @@
-\documentclass{article}
-
-\title{The Heisenberg Spin Chain with hMBO}
-\author{Dominic Meiser\\
-  dmeiser79@gmail.com}
-\date{created: 4/25/2015}
-
-
-\usepackage{dsfont}
-\usepackage{listings}
-\lstloadlanguages{Haskell}
-\lstnewenvironment{code}
-    {\lstset{}%
-      \csname lst@SetFirstLabel\endcsname}
-    {\csname lst@SaveFirstLabel\endcsname}
-    \lstset{
-      basicstyle=\small\ttfamily,
-      flexiblecolumns=false,
-      basewidth={0.5em,0.45em},
-      literate={+}{{$+$}}1 {/}{{$/$}}1 {*}{{$*$}}1 {=}{{$=$}}1
-               {>}{{$>$}}1 {<}{{$<$}}1 {\\}{{$\lambda$}}1
-               {\\\\}{{\char`\\\char`\\}}1
-               {->}{{$\rightarrow$}}2 {>=}{{$\geq$}}2 {<-}{{$\leftarrow$}}2
-               {<=}{{$\leq$}}2 {=>}{{$\Rightarrow$}}2
-               {\ .}{{$\circ$}}2 {\ .\ }{{$\circ$}}2
-               {>>}{{>>}}2 {>>=}{{>>=}}2
-               {|}{{$\mid$}}1
-    }
-
-\begin{document}
-
-\maketitle
+\section{Hamiltonian of a Heisenberg spin chain}
+\label{sec:SpinChain}
 
 In this example we conside the Heisenberg model for a one dimensional
 magnetic material.  The Heisenberg model consists of $N$ spin $1/2$
@@ -192,5 +162,3 @@ matrixElement psi a phi = VU.foldl1 (+) $ VU.zipWith (*) psi' aPhi
     aPhi = fromJust $ a `apply` phi
     psi' = VU.map conjugate psi
 \end{code}
-
-\end{document}
