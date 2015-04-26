@@ -4,7 +4,27 @@ import Test.Hspec
 import HMbo
 import Data.Maybe
 import qualified Data.Vector.Unboxed as VU
+import Data.Complex (conjugate, realPart)
 
+matrixElement :: Ket -> LinearOp -> Ket -> Amplitude
+matrixElement psi a phi = VU.foldl1 (+) $ VU.zipWith (*) psi' aPhi
+  where
+    aPhi = fromJust $ a `apply` phi
+    psi' = VU.map conjugate psi
+
+basisState :: Int -> Int -> Ket
+basisState d i = VU.fromList [kroneckerDelta i j | j <- [0..(d - 1)]]
+  where
+    kroneckerDelta m n | m == n = 1.0
+                       | otherwise = 0.0
+
+aij :: LinearOp -> Int -> Int -> Amplitude
+aij a i j = matrixElement (basisState d i) a (basisState d j)
+  where
+    d = fromDim $ getDim a
+
+isClose :: Double -> Amplitude -> Amplitude -> Bool
+isClose tol a b = (realPart $ abs (a - b)) < tol
 
 spec :: Spec
 spec = do
