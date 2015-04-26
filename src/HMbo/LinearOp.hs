@@ -31,7 +31,7 @@ import qualified Data.Vector.Unboxed as VU
 import Data.Complex
 import Data.List (intercalate,foldl')
 import Control.Monad (liftM2)
-import Data.Maybe (fromJust)
+import Data.Maybe ()
 
 data SparseMatrixEntry = SparseMatrixEntry Int Int Amplitude
   deriving(Show, Eq)
@@ -223,12 +223,18 @@ simplify (Kron _ op1 op2) = [simpleKron sop1 sop2
       SimpleOperator (a1 * a2) (s1 ++ s2)
 
 sApply :: [SimpleOperator] -> Ket -> Maybe Ket
-sApply ops k = foldl' vAdd vZero `fmap` mapM ((flip sApply') k) ops
+sApply ops k
+  | dimsOk = Just $ (foldl' vAdd vZero) (map ((flip sApply') k) ops)
+  | otherwise = Nothing
   where
     vAdd :: Ket -> Ket -> Ket
     vAdd = VU.zipWith (+)
     vZero = VU.replicate dim 0
     dim = VU.length k
+    dimsOk :: Bool
+    dimsOk = and $ map ((VU.length k ==) . totalDim) ops
+    totalDim :: SimpleOperator -> Int
+    totalDim (SimpleOperator _ ss) = product (map sDim ss)
 
 -- | Checks whether a simple operator can be applied to a Ket
 checkSimpleOp :: SimpleOperator -> Ket -> Bool
@@ -252,39 +258,33 @@ checkSimpleOp (SimpleOperator a (s:ss)) k
 sDim :: Slice -> Int
 sDim (IdentityMatrix d') = fromDim d'
 sDim (NonZeroLocation d' _ _) = fromDim d'
-sApply' :: SimpleOperator -> Ket -> Maybe Ket
-sApply' (SimpleOperator a []) k = Just $ VU.map (a *) k
-sApply' (SimpleOperator a [s]) k
-  | d == VU.length k =
-    case s of
-      IdentityMatrix _ -> Just $ VU.map (a *) k
-      NonZeroLocation _ i j ->
-        Just $ VU.concat
-          [VU.replicate i 0
-          ,VU.singleton (a * ((VU.!) k j))
-          ,VU.replicate (d - (i + 1)) 0
-          ]
-  | otherwise = Nothing
+sApply' :: SimpleOperator -> Ket -> Ket
+sApply' (SimpleOperator a []) k = VU.map (a *) k
+sApply' (SimpleOperator a [s]) k =
+  case s of
+    IdentityMatrix _ -> VU.map (a *) k
+    NonZeroLocation _ i j ->
+      VU.concat
+        [VU.replicate i 0
+        ,VU.singleton (a * ((VU.!) k j))
+        ,VU.replicate (d - (i + 1)) 0
+        ]
   where
     d = sDim s
-sApply' (SimpleOperator a (s:ss)) k
-  | totalDim == VU.length k =
-    case s of
-      IdentityMatrix _ ->
-        Just $
-          VU.concat $
-          map (fromJust .  sApply' (SimpleOperator a ss)) $
-          [VU.slice (i * blockSize) blockSize k | i <- [0..(d - 1)]]
-      NonZeroLocation _ i j ->
-        Just $
-          VU.concat $
-          [VU.replicate (i * blockSize) 0
-          ,fromJust $ sApply'
-             (SimpleOperator a ss)
-             (VU.slice (j * blockSize) blockSize k)
-          ,VU.replicate (totalDim - (i + 1) * blockSize) 0
-          ]
-  | otherwise = Nothing
+sApply' (SimpleOperator a (s:ss)) k =
+  case s of
+    IdentityMatrix _ ->
+      VU.concat $
+        map (sApply' (SimpleOperator a ss)) $
+        [VU.slice (i * blockSize) blockSize k | i <- [0..(d - 1)]]
+    NonZeroLocation _ i j ->
+        VU.concat $
+        [VU.replicate (i * blockSize) 0
+        ,sApply'
+           (SimpleOperator a ss)
+           (VU.slice (j * blockSize) blockSize k)
+        ,VU.replicate (totalDim - (i + 1) * blockSize) 0
+        ]
   where
     blockSize = product (map sDim ss)
     d = sDim s
