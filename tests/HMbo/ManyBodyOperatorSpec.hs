@@ -1,4 +1,4 @@
-module HMbo.LinearOpSpec (spec) where
+module HMbo.ManyBodyOperatorSpec (spec) where
 
 import Test.Hspec
 import HMbo
@@ -6,7 +6,7 @@ import Data.Maybe
 import qualified Data.Vector.Unboxed as VU
 import Data.Complex (conjugate, realPart)
 
-matrixElement :: Ket -> LinearOp -> Ket -> Amplitude
+matrixElement :: Ket -> ManyBodyOperator -> Ket -> Amplitude
 matrixElement psi a phi = VU.foldl1 (+) $ VU.zipWith (*) psi' aPhi
   where
     aPhi = fromJust $ a `apply` phi
@@ -18,7 +18,7 @@ basisState d i = VU.fromList [kroneckerDelta i j | j <- [0..(d - 1)]]
     kroneckerDelta m n | m == n = 1.0
                        | otherwise = 0.0
 
-aij :: LinearOp -> Int -> Int -> Amplitude
+aij :: ManyBodyOperator -> Int -> Int -> Amplitude
 aij a i j = matrixElement (basisState d i) a (basisState d j)
   where
     d = fromDim $ getDim a
@@ -29,14 +29,14 @@ isClose tol a b = (realPart $ abs (a - b)) < tol
 defTol :: Double
 defTol = 1.0e-12
 
-isHermitian :: Double -> LinearOp -> Bool
+isHermitian :: Double -> ManyBodyOperator -> Bool
 isHermitian tol a =
   and [isClose tol (aij a i j) (conjugate (aij a j i))
       | i <- [0..(d-1)], j <- [0..i]]
   where
     d = fromDim $ getDim a
 
-isDiagonal :: Double -> LinearOp -> Bool
+isDiagonal :: Double -> ManyBodyOperator -> Bool
 isDiagonal tol a =
   and [i == j || isClose tol 0.0 (aij a i j)
       | i <- [0..(d - 1)], j <- [0..(d - 1)]]
@@ -166,9 +166,9 @@ spec = do
     it "Is Hermitian." $
       sigmaY `shouldSatisfy` isHermitian defTol
 
-  describe "simplify" $ do
-    it "Produces a single entry when applied to an identity matrix." $
-      length (simplify (eye 2)) `shouldBe` 1
-    it "Produces a single entry when applied to a KetBra." $
-      length (simplify (fromJust $ ketBra 2 0 0 1.0)) `shouldBe` 1
+--  describe "simplify" $ do
+--    it "Produces a single entry when applied to an identity matrix." $
+--      length (simplify (eye 2)) `shouldBe` 1
+--    it "Produces a single entry when applied to a KetBra." $
+--      length (simplify (fromJust $ ketBra 2 0 0 1.0)) `shouldBe` 1
 

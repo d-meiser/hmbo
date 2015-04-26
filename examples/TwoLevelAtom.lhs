@@ -31,7 +31,7 @@ the general case.
 We construct the Hamiltonian out of elementary operators by means of
 the {\tt scale} and {\tt add}:
 \begin{code}
-buildHamiltonian :: Amplitude -> Amplitude -> LinearOp
+buildHamiltonian :: Amplitude -> Amplitude -> ManyBodyOperator
 buildHamiltonian delta g = fromJust $
   ((0.5 * delta) `scale` sigmaZ) `add` ((0.5 * g) `scale` sigmaX)
 \end{code}
@@ -92,7 +92,7 @@ We obtain the matrix element $\langle \psi|\hat H|\phi\rangle$ by
 applying the Hamiltonian to the state $|\phi\rangle$ and taking the
 inner product of the complex conjugate of $|\psi\rangle$ with the result:
 \begin{code}
-matrixElement :: Ket -> LinearOp -> Ket -> Amplitude
+matrixElement :: Ket -> ManyBodyOperator -> Ket -> Amplitude
 matrixElement psi a phi = VU.foldl1 (+) $ VU.zipWith (*) psi' aPhi
   where
     aPhi = fromJust $ a `apply` phi
@@ -106,7 +106,7 @@ apply} returns {\tt Nothing}.
 From the individual matrix elements we build up the matrix by taking
 matrix element between all pairs of basis states:
 \begin{code}
-computeMatrix :: LinearOp -> [Ket] -> Matrix
+computeMatrix :: ManyBodyOperator -> [Ket] -> Matrix
 computeMatrix op b = [[matrixElement psi op phi | phi <- b] | psi <- b]
 \end{code}
 We naively represent the {\tt Matrix} by a list of lists of matrix
