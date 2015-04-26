@@ -20,7 +20,8 @@ module HMbo.LinearOp(
     SimpleOperator,
     simplify,
     showSO,
-    sApply
+    sApply,
+    checkSimpleOp
     ) where
 
 import HMbo.Dim
@@ -228,6 +229,26 @@ sApply ops k = foldl' vAdd vZero `fmap` mapM ((flip sApply') k) ops
     vAdd = VU.zipWith (+)
     vZero = VU.replicate dim 0
     dim = VU.length k
+
+-- | Checks whether a simple operator can be applied to a Ket
+checkSimpleOp :: SimpleOperator -> Ket -> Bool
+checkSimpleOp (SimpleOperator _ []) k
+  | VU.length k == 1 = True
+  | otherwise = False
+checkSimpleOp (SimpleOperator a (s:ss)) k
+  | totalDim == VU.length k =
+    case s of
+      IdentityMatrix _ ->
+        checkSimpleOp (SimpleOperator a ss) (VU.take blockSize k)
+      NonZeroLocation _ i j ->
+        i >= 0 && i < d && j >= 0 && j < d &&
+          checkSimpleOp (SimpleOperator a ss) (VU.take blockSize k)
+  | otherwise = False
+  where
+    blockSize = product (map sDim ss)
+    d = sDim s
+    totalDim = d * blockSize
+
 sDim :: Slice -> Int
 sDim (IdentityMatrix d') = fromDim d'
 sDim (NonZeroLocation d' _ _) = fromDim d'
