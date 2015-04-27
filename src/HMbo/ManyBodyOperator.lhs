@@ -21,15 +21,12 @@ module HMbo.ManyBodyOperator(
     scale,
     kron,
     apply,
-    isZero,
-    SimpleOperator,
-    showSO,
-    nApply
+    isZero
     ) where
 
 import qualified Data.Vector.Unboxed as VU
 import Data.Complex
-import Data.List (intercalate,foldl')
+import Data.List (foldl')
 import Control.Monad (liftM2)
 import Data.Maybe ()
 
@@ -205,7 +202,7 @@ NOperator} part. \textbf{Properly implement this}:
 --   This function fails if the dimension of the operator does not match
 --   the dimension of the vector.
 apply :: ManyBodyOperator -> Ket -> Maybe Ket
-apply op k = aApply (aOp op) k
+apply op k = nApply (nOp op) k
 \end{code}
 
 
@@ -375,46 +372,6 @@ aKron op1 op2 | isZero op1 || isZero op2 = Plus (aGetDim op1 * aGetDim op2) []
               | otherwise = Kron (aGetDim op1 * aGetDim op2) op1 op2
 \end{code}
 
-\begin{code}
-aApply :: AOperator -> Ket -> Maybe Ket
-aApply (ScaledId d a) x | fromDim d == VU.length x = Just $ VU.map (a *) x
-                        | otherwise = Nothing
-aApply (KetBra d (SparseMatrixEntry i j a)) x
-  | fromDim d == VU.length x =
-      Just $  VU.generate (fromDim d) yfunc
-  | otherwise = Nothing
-    where
-      yfunc :: Int -> Amplitude
-      yfunc i' | i' == i = a * (VU.!) x j
-               | otherwise = 0
-aApply (Plus d ops) x | fromDim d == VU.length x =
-                        foldl' addVecs
-                          (Just zeroVec)
-                          (map (`aApply` x) ops)
-                      | otherwise = Nothing
-     where
-      addVecs :: Maybe Ket -> Maybe Ket -> Maybe Ket
-      addVecs _ Nothing = Nothing
-      addVecs Nothing _ = Nothing
-      addVecs (Just a) (Just b) = Just $ VU.zipWith (+) a b
-      zeroVec = VU.replicate (fromDim d) 0
-
-aApply (Kron _ op1 op2) x = do
-    xp <- applyOne op2 d2 x
-    xpp <- applyOne op1 d1 (transpose d1 xp)
-    return (transpose d2 xpp)
-  where
-    d1 = fromDim $ aGetDim op1
-    d2 = fromDim $ aGetDim op2
-    subVectors :: Int -> Ket -> [Ket]
-    subVectors d v = [VU.slice (d * j) d v | j <- [0..(numVecs - 1)]]
-      where
-        numVecs = VU.length v `div` d
-    applyOne :: AOperator -> Int -> Ket -> Maybe Ket
-    applyOne op d v = VU.concat `fmap` mapM (aApply op) (subVectors d v)
-
-\end{code}
-
 
 \subsection{Numerical operators}
 \label{ssec:NOperator}
@@ -551,18 +508,6 @@ nApply' (SimpleOperator a (s:ss)) k =
 \end{code}
 Note that we have unrolled the case with one slice left in the
 recursion.  This is an optimization.
-
-\ignore{
-\begin{code}
-showSO :: SimpleOperator -> String
-showSO (SimpleOperator a slices) = show a ++ " (" ++
-  intercalate " X " (map showSlice slices) ++ ")"
-showSlice :: Slice -> String
-showSlice (IdentityMatrix d) = "I(" ++ show (fromDim d) ++ ")"
-showSlice (NonZeroLocation d i j) =
-  "|" ++ show i ++ "><" ++ show j ++ "|_(" ++ show (fromDim d) ++ ")"
-\end{code}
-}
 
 
 \subsection{A few elementary operators}
