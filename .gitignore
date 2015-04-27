@@ -8,5 +8,7 @@ dist
 *.s
 *.aux
 *.hi
+*.toc
+*.dvi
 examples/SpinChain
 examples/TwoLevelAtom

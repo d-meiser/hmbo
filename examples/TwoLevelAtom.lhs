@@ -1,52 +1,5 @@
-\documentclass{article}
-
-\title{Matrix for a Two Level Atom}
-\author{Dominic Meiser\\
-  dmeiser79@gmail.com}
-\date{created: 4/24/2015}
-
-
-\usepackage{listings}
-\lstloadlanguages{Haskell}
-\lstnewenvironment{code}
-    {\lstset{}%
-      \csname lst@SetFirstLabel\endcsname}
-    {\csname lst@SaveFirstLabel\endcsname}
-    \lstset{
-      basicstyle=\small\ttfamily,
-      flexiblecolumns=false,
-      basewidth={0.5em,0.45em},
-      literate={+}{{$+$}}1 {/}{{$/$}}1 {*}{{$*$}}1 {=}{{$=$}}1
-               {>}{{$>$}}1 {<}{{$<$}}1 {\\}{{$\lambda$}}1
-               {\\\\}{{\char`\\\char`\\}}1
-               {->}{{$\rightarrow$}}2 {>=}{{$\geq$}}2 {<-}{{$\leftarrow$}}2
-               {<=}{{$\leq$}}2 {=>}{{$\Rightarrow$}}2
-               {\ .}{{$\circ$}}2 {\ .\ }{{$\circ$}}2
-               {>>}{{>>}}2 {>>=}{{>>=}}2
-               {|}{{$\mid$}}1
-    }
-\lstnewenvironment{spec}
-    {\lstset{}%
-      \csname lst@SetFirstLabel\endcsname}
-    {\csname lst@SaveFirstLabel\endcsname}
-    \lstset{
-      basicstyle=\small\ttfamily,
-      flexiblecolumns=false,
-      basewidth={0.5em,0.45em},
-      literate={+}{{$+$}}1 {/}{{$/$}}1 {*}{{$*$}}1 {=}{{$=$}}1
-               {>}{{$>$}}1 {<}{{$<$}}1 {\\}{{$\lambda$}}1
-               {\\\\}{{\char`\\\char`\\}}1
-               {->}{{$\rightarrow$}}2 {>=}{{$\geq$}}2 {<-}{{$\leftarrow$}}2
-               {<=}{{$\leq$}}2 {=>}{{$\Rightarrow$}}2
-               {\ .}{{$\circ$}}2 {\ .\ }{{$\circ$}}2
-               {>>}{{>>}}2 {>>=}{{>>=}}2
-               {|}{{$\mid$}}1
-    }
-
-\begin{document}
-
-\maketitle
-
+\section{Hamiltonian of a two level atom}
+\label{sec:TwoLevelAtom}
 
 This basic example illustrates the usage of the hmbo library for the
 representation of the Hamiltonian of a simple two level system.  The
@@ -78,18 +31,18 @@ the general case.
 We construct the Hamiltonian out of elementary operators by means of
 the {\tt scale} and {\tt add}:
 \begin{code}
-buildHamiltonian :: Amplitude -> Amplitude -> LinearOp
+buildHamiltonian :: Amplitude -> Amplitude -> ManyBodyOperator
 buildHamiltonian delta g = fromJust $
   ((0.5 * delta) `scale` sigmaZ) `add` ((0.5 * g) `scale` sigmaX)
 \end{code}
 The operators {\tt sigmaZ} and {\tt sigmaX} are provided by the hmbo
 library.  Note that the {\tt add} function does not directly return a
-{\tt LinearOp}.  This is because this function fails if the two
+{\tt ManyBodyOperator}.  This is because this function fails if the two
 operators to be added to one another have different dimensions.  In that
 case we cannot construct a meaningful sum of the two operators.
 Therefore the type of the {\tt add} function is
 \begin{spec}
-add :: LinearOp -> LinearOp -> Maybe LinearOp
+add :: ManyBodyOperator -> ManyBodyOperator -> Maybe ManyBodyOperator
 \end{spec}
 We return {\tt Nothing} if the addition of the two linear operators
 fails.  For the purposes of this example we get rid of the {\tt Just} in
@@ -104,9 +57,9 @@ addition in {\tt buildHamiltonian} were to fail.  In more complicated
 situations, especially when writing a library, it may be necessary to
 handle failures more safely.
 
-Our program simply builds the {\tt LinearOp} corresponding to the two
-level atom Hamiltonian, computes its matrix in the canonical basis, and
-prints the matrix to the screen:
+Our program simply builds the {\tt ManyBodyOperator} corresponding to
+the two level atom Hamiltonian, computes its matrix in the canonical
+basis, and prints the matrix to the screen:
 \begin{code}
 main :: IO ()
 main = do
@@ -139,7 +92,7 @@ We obtain the matrix element $\langle \psi|\hat H|\phi\rangle$ by
 applying the Hamiltonian to the state $|\phi\rangle$ and taking the
 inner product of the complex conjugate of $|\psi\rangle$ with the result:
 \begin{code}
-matrixElement :: Ket -> LinearOp -> Ket -> Amplitude
+matrixElement :: Ket -> ManyBodyOperator -> Ket -> Amplitude
 matrixElement psi a phi = VU.foldl1 (+) $ VU.zipWith (*) psi' aPhi
   where
     aPhi = fromJust $ a `apply` phi
@@ -153,7 +106,7 @@ apply} returns {\tt Nothing}.
 From the individual matrix elements we build up the matrix by taking
 matrix element between all pairs of basis states:
 \begin{code}
-computeMatrix :: LinearOp -> [Ket] -> Matrix
+computeMatrix :: ManyBodyOperator -> [Ket] -> Matrix
 computeMatrix op b = [[matrixElement psi op phi | phi <- b] | psi <- b]
 \end{code}
 We naively represent the {\tt Matrix} by a list of lists of matrix
@@ -184,4 +137,3 @@ Matrix:
 2.0 3.0
 3.0 2.0
 \end{spec}
-\end{document}

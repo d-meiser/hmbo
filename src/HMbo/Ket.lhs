@@ -1,3 +1,7 @@
+\section{Ket}
+\label{sec:Ket}
+
+\begin{code}
 module HMbo.Ket (
      Ket
     ,transpose) where
@@ -11,4 +15,4 @@ transpose n v = VU.fromList
                   [(VU.!) v (i * n + j) | j <- [0..(n - 1)], i <- [0..(m - 1)]]
   where
     m = VU.length v `div` n
-
+\end{code}

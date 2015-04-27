@@ -53,7 +53,7 @@ library
 
   -- Modules included in this library but not exported.
   other-modules:
-    HMbo.LinearOp
+    HMbo.ManyBodyOperator
     HMbo.Dim
     HMbo.Ket
     HMbo.Amplitude
