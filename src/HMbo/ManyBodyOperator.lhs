@@ -23,10 +23,8 @@ module HMbo.ManyBodyOperator(
     apply,
     isZero,
     SimpleOperator,
-    simplify,
     showSO,
-    sApply,
-    checkSimpleOp
+    nApply
     ) where
 
 import qualified Data.Vector.Unboxed as VU
@@ -82,9 +80,17 @@ The type {\tt AOperator} is tailored towards algebraic operations and
 operator to state vectors.  {\tt NOperator}s are created from {\tt
 AOperator}s by means of a compilation process.  In the compilation
 analogy the {\tt AOperator} corresponds to a high level language while
-the {\tt NOperator} is a form of assembly language.  The compilation can
-be performed with computational cost comparable to other algebraic
-operations, e.g.  $\mathcal{O}(N)$.
+the {\tt NOperator} is a form of assembly language.  Thus, we can
+construct a full {\tt ManyBodyOperator} from an {\tt AOperator} as
+follows:
+\begin{code}
+fromAOperator :: AOperator -> ManyBodyOperator
+fromAOperator op = ManyBodyOperator op (compile op)
+\end{code}
+The {\tt compile} function will be discussed in
+section~\ref{ssec:NOperator}.  The compilation can be performed with
+computational cost comparable to other algebraic operations, e.g.
+$\mathcal{O}(N)$.
 
 
 \subsection{Construction of many body operators}
@@ -99,14 +105,14 @@ Perhaps the simplest operator is the null operator,
 \begin{code}
 -- | Construct a null operator
 zero :: Dim -> ManyBodyOperator
-zero d = ManyBodyOperator (Plus d []) NOperator
+zero d = fromAOperator (Plus d [])
 \end{code}
 
 Similarly, the function {\tt eye} constructs an identity operator:
 \begin{code}
 -- | Construct an identity operator
 eye :: Dim -> ManyBodyOperator
-eye d = ManyBodyOperator (ScaledId d 1.0) NOperator
+eye d = fromAOperator (ScaledId d 1.0)
 \end{code}
 
 The function {\tt ketBra} for constructing an operator with a single
@@ -120,8 +126,7 @@ ketBra :: Dim       -- ^ Dimension of the operator
        -> Amplitude -- ^ Non-zero matrix element
        -> Maybe ManyBodyOperator
 ketBra d i j a | i >= 0 && i < d' && j >= 0 && j < d' = Just $
-                  ManyBodyOperator
-                    (KetBra d (SparseMatrixEntry i j a)) NOperator
+                 fromAOperator (KetBra d (SparseMatrixEntry i j a))
                | otherwise = Nothing
   where
     d' = fromDim d
@@ -151,14 +156,14 @@ intermediate results that are never applied to a {\tt Ket}.}.
 \begin{code}
 -- | Multiply an operator by a scalar.
 scale :: Amplitude -> ManyBodyOperator -> ManyBodyOperator
-scale a op = ManyBodyOperator (aScale a (aOp op)) NOperator
+scale a op = fromAOperator (aScale a (aOp op))
 
 -- | Add two operators.
 --   This function returns Nothing when operators with different
 --   dimensions are supplied.
 add :: ManyBodyOperator -> ManyBodyOperator -> Maybe ManyBodyOperator
 add op1 op2 = case (aAdd (aOp op1) (aOp op2)) of
-  Just result -> Just $ ManyBodyOperator result NOperator
+  Just result -> Just $ fromAOperator result
   Nothing -> Nothing
 
 -- | Product of two operators (matrix multiplication).
@@ -166,7 +171,7 @@ add op1 op2 = case (aAdd (aOp op1) (aOp op2)) of
 --   dimensions are supplied.
 mul :: ManyBodyOperator -> ManyBodyOperator -> Maybe ManyBodyOperator
 mul op1 op2 | d1 == d2 = Just $
-              ManyBodyOperator (aMul (aOp op1) (aOp op2)) NOperator
+              fromAOperator (aMul (aOp op1) (aOp op2))
             | otherwise = Nothing
             where
               d1 = getDim op1
@@ -174,7 +179,7 @@ mul op1 op2 | d1 == d2 = Just $
 
 -- | Compute the Kronecker product of two operators.
 kron :: ManyBodyOperator -> ManyBodyOperator -> ManyBodyOperator
-kron op1 op2 = ManyBodyOperator (aKron (aOp op1) (aOp op2)) NOperator
+kron op1 op2 = fromAOperator (aKron (aOp op1) (aOp op2))
 
 -- | Compute the dimension of an operator.
 getDim :: ManyBodyOperator -> Dim
@@ -412,28 +417,58 @@ aApply (Kron _ op1 op2) x = do
 
 
 \subsection{Numerical operators}
-\label{ssec:NOperators}
+\label{ssec:NOperator}
 
+In order to efficiently apply operators to states we need a simple
+representation of operators, an ``assembly language'' for many body
+operators.  We choose the following representation:
+\begin{equation}
+\hat A = \sum _j \alpha_j a_j \otimes b_j \otimes \ldots\;.
+\label{eqn:NOperator}
+\end{equation}
+An operator is a sum of simple operators, each of which is the tensor
+product of elementary operators $a_j$, $b_j$, etc.  The elementary
+operators are of one of two forms.  They are either an identity operator
+or they are a matrix with a single non-zero entry.  The matrix element
+of the non-zero entry is one.
+
+These ideas are straight forward to translate into Haskell.  An {\tt
+NOperator} is a list of simple operators corresponding to the sum in
+Eq.~(\ref{eqn:NOperator}:
 \begin{code}
-data NOperator = NOperator
+type NOperator = [SimpleOperator]
+\end{code}
+
+A {\tt SimpleOperator} has an amplitude, $\alpha_j$ in
+Eq.~(\ref{eqn:NOperator}), and a list of {\tt Slice}s representing the
+tensor product:
+\begin{code}
+data SimpleOperator = SimpleOperator Amplitude [Slice]
   deriving (Show, Eq)
 \end{code}
 
+A {\tt Slice} can be either an identity matrix or a matrix with a single
+non-zero matrix entry:
 \begin{code}
-data SimpleOperator = SimpleOperator Amplitude [Slice]
-  deriving (Show)
-
 data Slice = IdentityMatrix Dim
            | NonZeroLocation Dim Int Int
-  deriving (Show)
+  deriving (Show, Eq)
+\end{code}
 
-simplify :: AOperator -> [SimpleOperator]
-simplify (ScaledId d a) = [SimpleOperator a [IdentityMatrix d]]
-simplify (KetBra d (SparseMatrixEntry i j a)) =
+The compilation process is rather straight forward. We flatten Kronecker
+products of sums into sums of Kronecker products using the
+distributivity of the Kronecker product and collect scale factors in
+each term.  As an optimization, we combine adjacent identity matrices
+into larger identity matrices and adjacent {\tt NonZeroLocation}s into a
+single {\tt NonZeroLocation} using the {\tt mergePairs} function.
+\begin{code}
+compile :: AOperator -> NOperator
+compile (ScaledId d a) = [SimpleOperator a [IdentityMatrix d]]
+compile (KetBra d (SparseMatrixEntry i j a)) =
   [SimpleOperator a [NonZeroLocation d i j]]
-simplify (Plus _ ops) = concatMap simplify ops
-simplify (Kron _ op1 op2) = map mergePairs
-    [simpleKron sop1 sop2 | sop1 <- simplify op1 , sop2 <- simplify op2]
+compile (Plus _ ops) = concatMap compile ops
+compile (Kron _ op1 op2) = map mergePairs
+    [simpleKron sop1 sop2 | sop1 <- compile op1 , sop2 <- compile op2]
   where
     simpleKron (SimpleOperator a1 s1) (SimpleOperator a2 s2) =
       SimpleOperator (a1 * a2) (s1 ++ s2)
@@ -449,11 +484,16 @@ simplify (Kron _ op1 op2) = map mergePairs
         d2' = fromDim d2
     mergePairs' [] = []
     mergePairs' (s:ss) = s:(mergePairs' ss)
+\end{code}
 
-
-sApply :: [SimpleOperator] -> Ket -> Maybe Ket
-sApply ops k
-  | dimsOk = Just $ (foldl' vAdd vZero) (map ((flip sApply') k) ops)
+Now that we know how to compile {\tt AOperator}s into {\tt NOperator}s
+all that's left to do is to implement application of {\tt NOperator}s to
+{\tt Ket}s.  Operator application is achieved by applying each simple
+operator to the {\tt Ket} and by adding the results together:
+\begin{code}
+nApply :: NOperator -> Ket -> Maybe Ket
+nApply ops k
+  | dimsOk = Just $ (foldl' vAdd vZero) (map ((flip nApply') k) ops)
   | otherwise = Nothing
   where
     vAdd :: Ket -> Ket -> Ket
@@ -464,32 +504,22 @@ sApply ops k
     dimsOk = and $ map ((VU.length k ==) . totalDim) ops
     totalDim :: SimpleOperator -> Int
     totalDim (SimpleOperator _ ss) = product (map sDim ss)
+\end{code}
 
--- | Checks whether a simple operator can be applied to a Ket
-checkSimpleOp :: SimpleOperator -> Ket -> Bool
-checkSimpleOp (SimpleOperator _ []) k
-  | VU.length k == 1 = True
-  | otherwise = False
-checkSimpleOp (SimpleOperator a (s:ss)) k
-  | totalDim == VU.length k =
-    case s of
-      IdentityMatrix _ ->
-        checkSimpleOp (SimpleOperator a ss) (VU.take blockSize k)
-      NonZeroLocation _ i j ->
-        i >= 0 && i < d && j >= 0 && j < d &&
-          checkSimpleOp (SimpleOperator a ss) (VU.take blockSize k)
-  | otherwise = False
-  where
-    blockSize = product (map sDim ss)
-    d = sDim s
-    totalDim = d * blockSize
-
+The {\tt sDim} function simply extracts the dimension of a {\tt Slice}:
+\begin{code}
 sDim :: Slice -> Int
 sDim (IdentityMatrix d') = fromDim d'
 sDim (NonZeroLocation d' _ _) = fromDim d'
-sApply' :: SimpleOperator -> Ket -> Ket
-sApply' (SimpleOperator a []) k = VU.map (a *) k
-sApply' (SimpleOperator a [s]) k =
+\end{code}
+
+We are left with computing the application of the individual {\tt
+SimpleOperator}s to a {\tt Ket} which we do by recursively traversing
+the list of slices:
+\begin{code}
+nApply' :: SimpleOperator -> Ket -> Ket
+nApply' (SimpleOperator a []) k = VU.map (a *) k
+nApply' (SimpleOperator a [s]) k =
   case s of
     IdentityMatrix _ -> VU.map (a *) k
     NonZeroLocation _ i j ->
@@ -500,16 +530,16 @@ sApply' (SimpleOperator a [s]) k =
         ]
   where
     d = sDim s
-sApply' (SimpleOperator a (s:ss)) k =
+nApply' (SimpleOperator a (s:ss)) k =
   case s of
     IdentityMatrix _ ->
       VU.concat $
-        map (sApply' (SimpleOperator a ss)) $
+        map (nApply' (SimpleOperator a ss)) $
         [VU.slice (i * blockSize) blockSize k | i <- [0..(d - 1)]]
     NonZeroLocation _ i j ->
         VU.concat $
         [VU.replicate (i * blockSize) 0
-        ,sApply'
+        ,nApply'
            (SimpleOperator a ss)
            (VU.slice (j * blockSize) blockSize k)
         ,VU.replicate (totalDim - (i + 1) * blockSize) 0
@@ -518,7 +548,12 @@ sApply' (SimpleOperator a (s:ss)) k =
     blockSize = product (map sDim ss)
     d = sDim s
     totalDim = d * blockSize
+\end{code}
+Note that we have unrolled the case with one slice left in the
+recursion.  This is an optimization.
 
+\ignore{
+\begin{code}
 showSO :: SimpleOperator -> String
 showSO (SimpleOperator a slices) = show a ++ " (" ++
   intercalate " X " (map showSlice slices) ++ ")"
@@ -526,8 +561,8 @@ showSlice :: Slice -> String
 showSlice (IdentityMatrix d) = "I(" ++ show (fromDim d) ++ ")"
 showSlice (NonZeroLocation d i j) =
   "|" ++ show i ++ "><" ++ show j ++ "|_(" ++ show (fromDim d) ++ ")"
-
 \end{code}
+}
 
 
 \subsection{A few elementary operators}
