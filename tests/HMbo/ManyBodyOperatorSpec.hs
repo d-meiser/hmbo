@@ -43,6 +43,12 @@ isDiagonal tol a =
   where
     d = fromDim $ getDim a
 
+isCloseMat :: Double -> ManyBodyOperator -> ManyBodyOperator -> Bool
+isCloseMat tol a b =
+  and [isClose tol (aij a i j) (aij b i j) | i <- [0..d], j <- [0..d]]
+  where
+    d = fromDim $ getDim a
+
 spec :: Spec
 spec = do
   describe "Null Matrix" $ do
@@ -158,6 +164,9 @@ spec = do
       aij sigmaX 1 1 `shouldSatisfy` isClose defTol 0.0
     it "Is Hermitian." $
       sigmaX `shouldSatisfy` isHermitian defTol
+    it "Is equal to the sum of sigmaPlus and sigmaMinus" $
+      sigmaX `shouldSatisfy`
+        isCloseMat defTol (fromJust $ sigmaPlus `add` sigmaMinus)
 
   describe "sigmaY" $ do
     it "Has no diagonal elements." $ do
@@ -166,3 +175,31 @@ spec = do
     it "Is Hermitian." $
       sigmaY `shouldSatisfy` isHermitian defTol
 
+  describe "sigmaPlus" $ do
+    it "Is equal to zero when applied twice." $ do
+      let two = fromJust (toDim 2)
+      (fromJust $ sigmaPlus `mul` sigmaPlus) `shouldSatisfy`
+        isCloseMat defTol (zero two)
+
+  describe "sigmaMinus" $ do
+    it "Is equal to zero when applied twice." $ do
+      let two = fromJust (toDim 2)
+      (fromJust $ sigmaMinus `mul` sigmaMinus) `shouldSatisfy`
+        isCloseMat defTol (zero two)
+    it "Returns sigmaZ when commuted with sigmaMinus." $
+      (fromJust $
+        (fromJust $ sigmaPlus `mul` sigmaMinus) `add`
+        (scale (-1.0) $ fromJust $ sigmaMinus `mul` sigmaPlus)) `shouldSatisfy`
+        isCloseMat defTol sigmaZ
+
+  describe "numberOperator" $ do
+    it "Is diagonal." $ do
+      let d = fromJust $ toDim 3
+      numberOperator d `shouldSatisfy` isDiagonal defTol
+    it "Is Hermitian." $ do
+      let d = fromJust $ toDim 3
+      numberOperator d `shouldSatisfy` isHermitian defTol
+    it "Is equal to a^dagger a." $ do
+      let d = fromJust $ toDim 4
+      numberOperator d `shouldSatisfy` isCloseMat defTol
+        (fromJust $ creationOperator d `mul` annihilationOperator d)

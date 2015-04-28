@@ -576,14 +576,14 @@ numberOperator :: Dim -> ManyBodyOperator
 numberOperator d = fromJust $ foldM add (zero d)
   [fromJust $ ketBra d i i (fromIntegral i) | i <- [0..nMax]]
   where
-    nMax = fromDim d
+    nMax = fromDim d - 1
 
 -- | Annihilation operator
 annihilationOperator :: Dim -> ManyBodyOperator
 annihilationOperator d = fromJust $ foldM add (zero d)
   [fromJust $ ketBra d (i - 1) i (sqrt (fromIntegral i)) | i <- [1..nMax]]
   where
-    nMax = fromDim d
+    nMax = fromDim d - 1
 
 -- | Creation operator
 creationOperator :: Dim -> ManyBodyOperator
@@ -591,7 +591,7 @@ creationOperator d = fromJust $ foldM add (zero d)
   [fromJust $ ketBra d (i + 1) i (sqrt (fromIntegral i + 1.0))
   | i <- [0..(nMax - 1)]]
   where
-    nMax = fromDim d
+    nMax = fromDim d - 1
 \end{code}
 
 
