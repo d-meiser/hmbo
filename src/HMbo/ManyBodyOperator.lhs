@@ -12,6 +12,9 @@ module HMbo.ManyBodyOperator(
     sigmaZ,
     sigmaPlus,
     sigmaMinus,
+    numberOperator,
+    annihilationOperator,
+    creationOperator,
     ketBra,
     getDim,
     toDim,
@@ -27,8 +30,8 @@ module HMbo.ManyBodyOperator(
 import qualified Data.Vector.Unboxed as VU
 import Data.Complex
 import Data.List (foldl')
-import Control.Monad (liftM2)
-import Data.Maybe ()
+import Control.Monad (liftM2,foldM)
+import Data.Maybe (fromJust)
 
 import HMbo.Dim
 import HMbo.Amplitude
@@ -517,32 +520,80 @@ The following operators serve both as an illustration of how to
 construct {\tt ManyBodyOperators} as well as building blocks for more
 complicate operators.
 
-\begin{code}
 
+\subsubsection{Spin operators}
+
+First, we consider some spin operators.  The spin raising and lowering
+operators can be implemented as follows:
+\begin{code}
+-- | Spin raising operator for spin 1/2
+sigmaPlus :: ManyBodyOperator
+Just sigmaPlus = ketBra d 1 0 1.0
+  where
+    Just d = toDim 2
+
+-- | Spin lowering operator for spin 1/2
+sigmaMinus :: ManyBodyOperator
+Just sigmaMinus = ketBra d 0 1 1.0
+  where
+    Just d = toDim 2
+\end{code}
+
+Next, the Pauli spin matrices:
+\begin{code}
+-- | Pauli sigma^x matrix
 sigmaX :: ManyBodyOperator
 Just (Just sigmaX) = liftM2 add (ketBra d 0 1 1.0) (ketBra d 1 0 1.0)
   where
     Just d = toDim 2
 
+-- | Pauli sigma^y matrix
 sigmaY :: ManyBodyOperator
 Just (Just sigmaY) = liftM2 add (ketBra d 0 1 (0.0 :+ 1.0))
                                 (ketBra d 1 0 (0.0 :+ (-1.0)))
   where
     Just d = toDim 2
 
+-- | Pauli sigma^y matrix
 sigmaZ :: ManyBodyOperator
 Just (Just sigmaZ) = liftM2 add (ketBra d 1 1 1.0) (ketBra d 0 0 (-1.0))
   where
     Just d = toDim 2
+\end{code}
 
-sigmaPlus :: ManyBodyOperator
-Just sigmaPlus = ketBra d 1 0 1.0
-  where
-    Just d = toDim 2
+We can also build angular momentum operators with magnitude greater than
+$J=1/2$. \textbf{Todo: Develop a type for $J$ that can only be positive
+and write $J_+$, $J_-$, $J_x$, $J_y$, and $J_z$}.
 
-sigmaMinus :: ManyBodyOperator
-Just sigmaMinus = ketBra d 0 1 1.0
+
+\subsubsection{Harmonic oscillator operators}
+
+The harmonic oscillator operators in a Hilbert space truncated to
+a maximum quantum number of $n_{\rm max}$ is:
+\begin{code}
+-- | Number operator for a harmonic oscillator
+numberOperator :: Dim -> ManyBodyOperator
+numberOperator d = fromJust $ foldM add (zero d)
+  [fromJust $ ketBra d i i (fromIntegral i) | i <- [0..nMax]]
   where
-    Just d = toDim 2
+    nMax = fromDim d
+
+-- | Annihilation operator
+annihilationOperator :: Dim -> ManyBodyOperator
+annihilationOperator d = fromJust $ foldM add (zero d)
+  [fromJust $ ketBra d (i - 1) i (sqrt (fromIntegral i)) | i <- [1..nMax]]
+  where
+    nMax = fromDim d
+
+-- | Creation operator
+creationOperator :: Dim -> ManyBodyOperator
+creationOperator d = fromJust $ foldM add (zero d)
+  [fromJust $ ketBra d (i + 1) i (sqrt (fromIntegral i + 1.0))
+  | i <- [0..(nMax - 1)]]
+  where
+    nMax = fromDim d
+\end{code}
+
+
 
 \end{code}
