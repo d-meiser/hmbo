@@ -593,7 +593,3 @@ creationOperator d = fromJust $ foldM add (zero d)
   where
     nMax = fromDim d - 1
 \end{code}
-
-
-
-\end{code}
