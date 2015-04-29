@@ -151,7 +151,8 @@ the {\tt AOperator} of the result is computed we find the {\tt
 NOperator} simply by means of compilation\footnote{It may be worth
 pointing out that this compilation is performed lazily.  As a
 consequence, the {\tt NOperator} is not actually constructed for
-intermediate results that are never applied to a {\tt Ket}.}.
+intermediate results that are never applied to a {\tt Ket}.  This
+construction gives us memoization for free}.
 
 \begin{code}
 -- | Multiply an operator by a scalar.
@@ -190,14 +191,31 @@ getDim (ManyBodyOperator aop _) = aGetDim aop
 The functions {\tt scale} and {\tt kron} trivially forward to {\tt
 aScale} and {\tt aKron}, respectively.  The functions {\tt add} and {\tt
 mul} on the other hand are a little bit trickier because they can fail.
-The sum or product of two operators of different dimension is
-meaningless.  In the event of incompatible operators, {\tt add} and {\tt
-mul} return {\tt Nothing}.  In separate efforts we have attempted to
-encode this failure mode in the type system.  But we found that the
-result was unduly cumbersome in the common case where the operators are
-in fact compatible.  In our current design, there are three {\tt
-ManyBodyOperator} related functions that may fail: {\tt ketBra}, {\tt
-add}, and {\tt mul}.
+A problem with {\tt add} and {\tt mul} is that the result of these
+operations is not defined if the two input operators have different
+dimensions.  In the event of incompatible operators, {\tt add} and {\tt
+mul} fail with an error.  We have considered several alternative
+solutions for this problem:
+\begin{description}
+
+\item[Encode dimension of space in type]  The root cause of our problem
+is that a linear operator is defined by the linear space on which it
+acts and a matrix in a basis in this space.  A space is characterized by
+its dimension.  Schematically, we would like to parametrize the {\tt
+type} of {\tt ManyBodyOperator} by the space.  With type literals
+(introduced in GHC 7.10) this would be possible in principle.
+
+\item[Return {\tt Maybe ManyBodyOperator} in case of failure]  This is
+another idiomatic Haskell way of dealing with computations that may
+fail.
+
+\end{description}
+
+In the end we have decided that these approaches don't add enough value
+to justify the clutter they lead to.  Note also that runtime bounds
+checking with error in case of failure is the approach chosen in several
+prominent Haskell libraries including {\tt Data.Vector} and {\tt
+Data.Array}.
 
 The {\tt ManyBodyOperator} type is a monoid under the Kronecker product:
 \begin{code}
