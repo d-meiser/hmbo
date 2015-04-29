@@ -31,6 +31,7 @@ import qualified Data.Vector.Unboxed as VU
 import Data.Complex
 import Data.List (foldl')
 import Data.Maybe (fromJust)
+import Data.Monoid
 
 import HMbo.Dim
 import HMbo.Amplitude
@@ -197,6 +198,13 @@ result was unduly cumbersome in the common case where the operators are
 in fact compatible.  In our current design, there are three {\tt
 ManyBodyOperator} related functions that may fail: {\tt ketBra}, {\tt
 add}, and {\tt mul}.
+
+The {\tt ManyBodyOperator} type is a monoid under the Kronecker product:
+\begin{code}
+instance Monoid ManyBodyOperator where
+  mempty = eye 1
+  mappend = kron
+\end{code}
 
 Finally, to apply {\tt ManyBodyOperators} to {\tt Ket}s we use the {\tt
 NOperator} part. \textbf{Properly implement this}:

@@ -6,6 +6,7 @@ import HMbo
 import Data.Maybe
 import qualified Data.Vector.Unboxed as VU
 import Data.Complex (conjugate, realPart)
+import Data.Monoid
 
 matrixElement :: Ket -> ManyBodyOperator -> Ket -> Amplitude
 matrixElement psi a phi = VU.foldl1 (+) $ VU.zipWith (*) psi' aPhi
@@ -98,6 +99,13 @@ spec = do
         kron sigmaZ sigmaZ `shouldSatisfy` isDiagonal defTol
         kron (eye 3) sigmaZ `shouldSatisfy` isDiagonal defTol
         kron sigmaZ (eye 3) `shouldSatisfy` isDiagonal defTol
+
+  describe "The Kronecker product Monoid" $ do
+    it "Has an identity of dimension 1." $
+      getDim (mempty :: ManyBodyOperator) `shouldBe` 1
+    it "Gives the same result as kron." $
+      sigmaX <> sigmaY `shouldSatisfy`
+        isCloseMat defTol (sigmaX `kron` sigmaY)
 
   describe "add" $ do
     it "Results in error if dimensions don't match." $ do
