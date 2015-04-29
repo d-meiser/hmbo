@@ -29,7 +29,8 @@ module Main where
 import qualified Data.Vector.Unboxed as VU
 import Data.Complex (conjugate)
 import Data.Maybe (fromJust)
-import Data.Foldable (foldlM)
+import Data.List (foldl')
+import Data.Monoid (mconcat)
 import HMbo
 \end{code}
 We use {\tt Data.Vector.Unboxed} to deal with hmbo's {\tt Ket}s and
@@ -71,13 +72,11 @@ where $\mathds{1}_2$ is the $2\times 2$ identity matrix.
 
 This construction can be expressed directly using the hmbo library:
 \begin{code}
-embed :: ManyBodyOperator -> Int -> HilbertSpace ->
-         Maybe ManyBodyOperator
-embed op j (d:ds) | j == 0 && d == getDim op =
-                    (op `kron`) `fmap` embed op (j - 1) ds
-                  | otherwise =
-                    (eye d `kron`) `fmap` embed op (j - 1) ds
-embed _ _ [] = Just $ eye $ fromJust (toDim 1)
+embed :: ManyBodyOperator -> Int -> HilbertSpace -> ManyBodyOperator
+embed op j dims = mconcat $ zipWith factor [0..] dims
+  where
+    factor i d | i == j = op
+               | otherwise = eye d
 \end{code}
 We wish to embed the single particle operator {\tt op} into the $j$-th
 ``slot'' in the product space.  We recurse through the dimensions in the
@@ -95,9 +94,8 @@ piece,
 \end{equation}
 \begin{code}
 hz :: Int -> Amplitude -> ManyBodyOperator
-hz n h = scale (0.5 * h) $ fromJust $
-  foldlM add (zero totalDim)
-    [fromJust (embed sigmaZ j space) | j <- [0..(n - 1)]]
+hz n h = scale (0.5 * h) $ foldl' add (zero totalDim)
+  [embed sigmaZ j space | j <- [0..(n - 1)]]
   where
     space = spinSpace n
     totalDim = fromJust $ toDim (2^n)
@@ -112,11 +110,10 @@ function.
 \begin{code}
 buildInteractionPiece :: ManyBodyOperator -> Int -> Amplitude ->
                          ManyBodyOperator
-buildInteractionPiece op n coupling = scale ((-0.5) * coupling) $ fromJust $
-  foldlM add (zero totalDim)
-    [fromJust (
-     fromJust (embed op j space) `mul`
-     fromJust (embed op ((j + 1) `mod` n) space)) | j <- [0..(n - 1)]]
+buildInteractionPiece op n coupling = scale ((-0.5) * coupling) $
+  foldl' add (zero totalDim)
+    [embed op j space `mul` embed op ((j + 1) `mod` n) space
+    | j <- [0..(n - 1)]]
   where
     space = spinSpace n
     totalDim = fromJust $ toDim (2^n)
@@ -128,7 +125,7 @@ the complete Hamiltonian:
 \begin{code}
 buildH :: Int -> Amplitude -> Amplitude -> Amplitude -> Amplitude ->
           ManyBodyOperator
-buildH n h jx jy jz = fromJust $ foldlM add (zero totalDim)
+buildH n h jx jy jz = foldl' add (zero totalDim)
   [hz n h
   ,buildInteractionPiece sigmaX n jx
   ,buildInteractionPiece sigmaY n jy
@@ -162,6 +159,6 @@ basisState d i = VU.fromList [kroneckerDelta i j | j <- [0..(d - 1)]]
 matrixElement :: Ket -> ManyBodyOperator -> Ket -> Amplitude
 matrixElement psi a phi = VU.foldl1 (+) $ VU.zipWith (*) psi' aPhi
   where
-    aPhi = fromJust $ a `apply` phi
+    aPhi = a `apply` phi
     psi' = VU.map conjugate psi
 \end{code}

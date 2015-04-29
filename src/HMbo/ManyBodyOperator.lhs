@@ -30,8 +30,8 @@ module HMbo.ManyBodyOperator(
 import qualified Data.Vector.Unboxed as VU
 import Data.Complex
 import Data.List (foldl')
-import Control.Monad (liftM2,foldM)
 import Data.Maybe (fromJust)
+import Data.Monoid
 
 import HMbo.Dim
 import HMbo.Amplitude
@@ -151,7 +151,8 @@ the {\tt AOperator} of the result is computed we find the {\tt
 NOperator} simply by means of compilation\footnote{It may be worth
 pointing out that this compilation is performed lazily.  As a
 consequence, the {\tt NOperator} is not actually constructed for
-intermediate results that are never applied to a {\tt Ket}.}.
+intermediate results that are never applied to a {\tt Ket}.  This
+construction gives us memoization for free}.
 
 \begin{code}
 -- | Multiply an operator by a scalar.
@@ -159,20 +160,21 @@ scale :: Amplitude -> ManyBodyOperator -> ManyBodyOperator
 scale a op = fromAOperator (aScale a (aOp op))
 
 -- | Add two operators.
---   This function returns Nothing when operators with different
---   dimensions are supplied.
-add :: ManyBodyOperator -> ManyBodyOperator -> Maybe ManyBodyOperator
-add op1 op2 = case (aAdd (aOp op1) (aOp op2)) of
-  Just result -> Just $ fromAOperator result
-  Nothing -> Nothing
+--   This function fails with an error if the operators' dimensions are
+--   different.
+add :: ManyBodyOperator -> ManyBodyOperator -> ManyBodyOperator
+add op1 op2 | d1 == d2 = fromAOperator (aAdd (aOp op1) (aOp op2))
+            | otherwise = error "add: Dimensions don't match."
+            where
+              d1 = getDim op1
+              d2 = getDim op2
 
 -- | Product of two operators (matrix multiplication).
---   This function returns Nothing when operators with different
---   dimensions are supplied.
-mul :: ManyBodyOperator -> ManyBodyOperator -> Maybe ManyBodyOperator
-mul op1 op2 | d1 == d2 = Just $
-              fromAOperator (aMul (aOp op1) (aOp op2))
-            | otherwise = Nothing
+--   This function fails with an error if the operators' dimensions are
+--   different.
+mul :: ManyBodyOperator -> ManyBodyOperator -> ManyBodyOperator
+mul op1 op2 | d1 == d2 = fromAOperator (aMul (aOp op1) (aOp op2))
+            | otherwise = error "mul: Dimensions don't match."
             where
               d1 = getDim op1
               d2 = getDim op2
@@ -189,22 +191,46 @@ getDim (ManyBodyOperator aop _) = aGetDim aop
 The functions {\tt scale} and {\tt kron} trivially forward to {\tt
 aScale} and {\tt aKron}, respectively.  The functions {\tt add} and {\tt
 mul} on the other hand are a little bit trickier because they can fail.
-The sum or product of two operators of different dimension is
-meaningless.  In the event of incompatible operators, {\tt add} and {\tt
-mul} return {\tt Nothing}.  In separate efforts we have attempted to
-encode this failure mode in the type system.  But we found that the
-result was unduly cumbersome in the common case where the operators are
-in fact compatible.  In our current design, there are three {\tt
-ManyBodyOperator} related functions that may fail: {\tt ketBra}, {\tt
-add}, and {\tt mul}.
+A problem with {\tt add} and {\tt mul} is that the result of these
+operations is not defined if the two input operators have different
+dimensions.  In the event of incompatible operators, {\tt add} and {\tt
+mul} fail with an error.  We have considered several alternative
+solutions for this problem:
+\begin{description}
+
+\item[Encode dimension of space in type]  The root cause of our problem
+is that a linear operator is defined by the linear space on which it
+acts and a matrix in a basis in this space.  A space is characterized by
+its dimension.  Schematically, we would like to parametrize the {\tt
+type} of {\tt ManyBodyOperator} by the space.  With type literals
+(introduced in GHC 7.10) this would be possible in principle.
+
+\item[Return {\tt Maybe ManyBodyOperator} in case of failure]  This is
+another idiomatic Haskell way of dealing with computations that may
+fail.
+
+\end{description}
+
+In the end we have decided that these approaches don't add enough value
+to justify the clutter they lead to.  Note also that runtime bounds
+checking with error in case of failure is the approach chosen in several
+prominent Haskell libraries including {\tt Data.Vector} and {\tt
+Data.Array}.
+
+The {\tt ManyBodyOperator} type is a monoid under the Kronecker product:
+\begin{code}
+instance Monoid ManyBodyOperator where
+  mempty = eye 1
+  mappend = kron
+\end{code}
 
 Finally, to apply {\tt ManyBodyOperators} to {\tt Ket}s we use the {\tt
 NOperator} part. \textbf{Properly implement this}:
 \begin{code}
 -- | Apply an operator to a vector
---   This function fails if the dimension of the operator does not match
---   the dimension of the vector.
-apply :: ManyBodyOperator -> Ket -> Maybe Ket
+--   This function fails with an error if the dimension of the operator
+--   does not match the dimension of the vector.
+apply :: ManyBodyOperator -> Ket -> Ket
 apply op k = nApply (nOp op) k
 \end{code}
 
@@ -264,12 +290,12 @@ constructors is exactly the sum of operators.  Nearly all the code in
 {\tt aAdd} is error checking to make sure that we never end up with the
 sum of two incompatible operators:
 \begin{code}
-aAdd :: AOperator -> AOperator -> Maybe AOperator
-aAdd op1 op2 | d1 == d2 = Just $ Plus d1 [op1, op2]
-            | otherwise = Nothing
-            where
-              d1 = aGetDim op1
-              d2 = aGetDim op2
+aAdd :: AOperator -> AOperator -> AOperator
+aAdd op1 op2 | d1 == d2 = Plus d1 [op1, op2]
+             | otherwise = error "aAdd: Dimensions don't match."
+             where
+               d1 = aGetDim op1
+               d2 = aGetDim op2
 
 aGetDim :: AOperator -> Dim
 aGetDim (Kron d _ _) = d
@@ -451,10 +477,11 @@ all that's left to do is to implement application of {\tt NOperator}s to
 {\tt Ket}s.  Operator application is achieved by applying each simple
 operator to the {\tt Ket} and by adding the results together:
 \begin{code}
-nApply :: NOperator -> Ket -> Maybe Ket
+nApply :: NOperator -> Ket -> Ket
 nApply ops k
-  | dimsOk = Just $ (foldl' vAdd vZero) (map ((flip nApply') k) ops)
-  | otherwise = Nothing
+  | dimsOk = foldl' vAdd vZero (map ((flip nApply') k) ops)
+  | otherwise =
+      error "nApply: operator dimension doesn't match vector dimensions"
   where
     vAdd :: Ket -> Ket -> Ket
     vAdd = VU.zipWith (+)
@@ -543,20 +570,20 @@ Next, the Pauli spin matrices:
 \begin{code}
 -- | Pauli sigma^x matrix
 sigmaX :: ManyBodyOperator
-Just (Just sigmaX) = liftM2 add (ketBra d 0 1 1.0) (ketBra d 1 0 1.0)
+sigmaX = add (fromJust $ ketBra d 0 1 1.0) (fromJust $ ketBra d 1 0 1.0)
   where
     Just d = toDim 2
 
 -- | Pauli sigma^y matrix
 sigmaY :: ManyBodyOperator
-Just (Just sigmaY) = liftM2 add (ketBra d 0 1 (0.0 :+ 1.0))
-                                (ketBra d 1 0 (0.0 :+ (-1.0)))
+sigmaY = add (fromJust $ ketBra d 0 1 (0.0 :+ 1.0))
+             (fromJust $ ketBra d 1 0 (0.0 :+ (-1.0)))
   where
     Just d = toDim 2
 
 -- | Pauli sigma^y matrix
 sigmaZ :: ManyBodyOperator
-Just (Just sigmaZ) = liftM2 add (ketBra d 1 1 1.0) (ketBra d 0 0 (-1.0))
+sigmaZ = add (fromJust $ ketBra d 1 1 1.0) (fromJust $ ketBra d 0 0 (-1.0))
   where
     Just d = toDim 2
 \end{code}
@@ -573,21 +600,21 @@ a maximum quantum number of $n_{\rm max}$ is:
 \begin{code}
 -- | Number operator for a harmonic oscillator
 numberOperator :: Dim -> ManyBodyOperator
-numberOperator d = fromJust $ foldM add (zero d)
+numberOperator d = foldl' add (zero d)
   [fromJust $ ketBra d i i (fromIntegral i) | i <- [0..nMax]]
   where
     nMax = fromDim d - 1
 
 -- | Annihilation operator
 annihilationOperator :: Dim -> ManyBodyOperator
-annihilationOperator d = fromJust $ foldM add (zero d)
+annihilationOperator d = foldl' add (zero d)
   [fromJust $ ketBra d (i - 1) i (sqrt (fromIntegral i)) | i <- [1..nMax]]
   where
     nMax = fromDim d - 1
 
 -- | Creation operator
 creationOperator :: Dim -> ManyBodyOperator
-creationOperator d = fromJust $ foldM add (zero d)
+creationOperator d = foldl' add (zero d)
   [fromJust $ ketBra d (i + 1) i (sqrt (fromIntegral i + 1.0))
   | i <- [0..(nMax - 1)]]
   where
