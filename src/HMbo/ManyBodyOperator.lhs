@@ -241,10 +241,10 @@ apply op k = nApply (nOp op) k
 The {\tt AOperator} is designed to make it easy to implement the
 typical algebraic operations such as addition or outer products:
 \begin{code}
-data AOperator = Kron Dim AOperator AOperator
-               | Plus Dim [AOperator]
-               | KetBra Dim SparseMatrixEntry
-               | ScaledId Dim Amplitude
+data AOperator = Kron !Dim AOperator AOperator
+               | Plus !Dim [AOperator]
+               | KetBra !Dim SparseMatrixEntry
+               | ScaledId !Dim !Amplitude
   deriving (Show, Eq)
 \end{code}
 The data constructor {\tt Kron} represents the outer product of two
@@ -257,7 +257,7 @@ $|i\rangle\langle j|$, where $|i\rangle$ and $|j\rangle$ are basis
 vectors.  Such operators are represented naively by the following data
 type:
 \begin{code}
-data SparseMatrixEntry = SparseMatrixEntry Int Int Amplitude
+data SparseMatrixEntry = SparseMatrixEntry !Int !Int !Amplitude
   deriving(Show, Eq)
 \end{code}
 Finally, {\tt ScaledId} is the identity operator scaled by a
@@ -429,15 +429,15 @@ A {\tt SimpleOperator} has an amplitude, $\alpha_j$ in
 Eq.~(\ref{eqn:NOperator}), and a list of {\tt Slice}s representing the
 tensor product:
 \begin{code}
-data SimpleOperator = SimpleOperator Amplitude [Slice]
+data SimpleOperator = SimpleOperator !Amplitude [Slice]
   deriving (Show, Eq)
 \end{code}
 
 A {\tt Slice} can be either an identity matrix or a matrix with a single
 non-zero matrix entry:
 \begin{code}
-data Slice = IdentityMatrix Dim
-           | NonZeroLocation Dim Int Int
+data Slice = IdentityMatrix !Dim
+           | NonZeroLocation !Dim !Int !Int
   deriving (Show, Eq)
 \end{code}
 
