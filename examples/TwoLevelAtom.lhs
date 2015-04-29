@@ -32,7 +32,7 @@ We construct the Hamiltonian out of elementary operators by means of
 the {\tt scale} and {\tt add}:
 \begin{code}
 buildHamiltonian :: Amplitude -> Amplitude -> ManyBodyOperator
-buildHamiltonian delta g = fromJust $
+buildHamiltonian delta g =
   ((0.5 * delta) `scale` sigmaZ) `add` ((0.5 * g) `scale` sigmaX)
 \end{code}
 The operators {\tt sigmaZ} and {\tt sigmaX} are provided by the hmbo
@@ -42,7 +42,7 @@ operators to be added to one another have different dimensions.  In that
 case we cannot construct a meaningful sum of the two operators.
 Therefore the type of the {\tt add} function is
 \begin{spec}
-add :: ManyBodyOperator -> ManyBodyOperator -> Maybe ManyBodyOperator
+add :: ManyBodyOperator -> ManyBodyOperator -> ManyBodyOperator
 \end{spec}
 We return {\tt Nothing} if the addition of the two linear operators
 fails.  For the purposes of this example we get rid of the {\tt Just} in
@@ -95,7 +95,7 @@ inner product of the complex conjugate of $|\psi\rangle$ with the result:
 matrixElement :: Ket -> ManyBodyOperator -> Ket -> Amplitude
 matrixElement psi a phi = VU.foldl1 (+) $ VU.zipWith (*) psi' aPhi
   where
-    aPhi = fromJust $ a `apply` phi
+    aPhi = a `apply` phi
     psi' = VU.map conjugate psi
 \end{code}
 Note that we encounter a similar issue with {\tt apply} as we did with

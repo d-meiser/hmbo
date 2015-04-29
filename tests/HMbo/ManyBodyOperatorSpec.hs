@@ -1,6 +1,7 @@
 module HMbo.ManyBodyOperatorSpec (spec) where
 
 import Test.Hspec
+import Control.Exception (evaluate)
 import HMbo
 import Data.Maybe
 import qualified Data.Vector.Unboxed as VU
@@ -9,7 +10,7 @@ import Data.Complex (conjugate, realPart)
 matrixElement :: Ket -> ManyBodyOperator -> Ket -> Amplitude
 matrixElement psi a phi = VU.foldl1 (+) $ VU.zipWith (*) psi' aPhi
   where
-    aPhi = fromJust $ a `apply` phi
+    aPhi = a `apply` phi
     psi' = VU.map conjugate psi
 
 basisState :: Int -> Int -> Ket
@@ -99,15 +100,15 @@ spec = do
         kron sigmaZ (eye 3) `shouldSatisfy` isDiagonal defTol
 
   describe "add" $ do
-    it "Results in Nothing if dimensions don't match." $
-      add
+    it "Results in error if dimensions don't match." $ do
+      evaluate (add
         (eye (fromJust (toDim 2)))
-        (eye (fromJust (toDim 3)))
-          `shouldBe` Nothing
+        (eye (fromJust (toDim 3))))
+          `shouldThrow` errorCall "add: Dimensions don't match."
     it "Adds matrix entries." $ do
       let op1 = sigmaZ `kron` (eye 2)
       let op2 = sigmaX `kron` sigmaY
-      let theSum = fromJust $ op1 `add` op2
+      let theSum = op1 `add` op2
       aij theSum 0 1 `shouldSatisfy`
         isClose defTol ((aij op1 0 1) + (aij op2 0 1))
       aij theSum 2 1 `shouldSatisfy`
@@ -119,24 +120,21 @@ spec = do
     it "Returns nothing when dimensions don't match." $ do
       let v = VU.fromList [1.3, 3.4] :: Ket
       let d = fromJust $ toDim 3
-      apply (eye d) v `shouldBe` Nothing
-    it "Returns something when dimensions match." $ do
-      let v = VU.fromList [1.3, 3.4] :: Ket
-      let d = fromJust $ toDim 2
-      apply (eye d) v `shouldSatisfy` isJust
+      evaluate (apply (eye d) v) `shouldThrow`
+        errorCall "nApply: operator dimension doesn't match vector dimensions"
 
     describe "Identity" $
       it "Returns vectors unchanged." $ do
         let v = VU.fromList [1.3, 3.4] :: Ket
         let d = fromJust $ toDim 2
-        apply (eye d) v `shouldBe` Just v
+        apply (eye d) v `shouldBe` v
 
     describe "Zero operator" $
       it "Returns 0." $ do
         let v = VU.fromList [1.3, 3.4] :: Ket
         let w = VU.replicate 2 0 :: Ket
         let d = fromJust $ toDim 2
-        fromJust (apply (zero d) v) `shouldBe` w
+        apply (zero d) v `shouldBe` w
 
   describe "transpose" $ do
     it "Returns the same vector when transposed with pivot 1." $ do
@@ -166,7 +164,7 @@ spec = do
       sigmaX `shouldSatisfy` isHermitian defTol
     it "Is equal to the sum of sigmaPlus and sigmaMinus" $
       sigmaX `shouldSatisfy`
-        isCloseMat defTol (fromJust $ sigmaPlus `add` sigmaMinus)
+        isCloseMat defTol (sigmaPlus `add` sigmaMinus)
 
   describe "sigmaY" $ do
     it "Has no diagonal elements." $ do
@@ -178,18 +176,17 @@ spec = do
   describe "sigmaPlus" $ do
     it "Is equal to zero when applied twice." $ do
       let two = fromJust (toDim 2)
-      (fromJust $ sigmaPlus `mul` sigmaPlus) `shouldSatisfy`
+      (sigmaPlus `mul` sigmaPlus) `shouldSatisfy`
         isCloseMat defTol (zero two)
 
   describe "sigmaMinus" $ do
     it "Is equal to zero when applied twice." $ do
       let two = fromJust (toDim 2)
-      (fromJust $ sigmaMinus `mul` sigmaMinus) `shouldSatisfy`
+      (sigmaMinus `mul` sigmaMinus) `shouldSatisfy`
         isCloseMat defTol (zero two)
     it "Returns sigmaZ when commuted with sigmaMinus." $
-      (fromJust $
-        (fromJust $ sigmaPlus `mul` sigmaMinus) `add`
-        (scale (-1.0) $ fromJust $ sigmaMinus `mul` sigmaPlus)) `shouldSatisfy`
+      ((sigmaPlus `mul` sigmaMinus) `add`
+        (scale (-1.0) $ sigmaMinus `mul` sigmaPlus)) `shouldSatisfy`
         isCloseMat defTol sigmaZ
 
   describe "numberOperator" $ do
@@ -202,4 +199,4 @@ spec = do
     it "Is equal to a^dagger a." $ do
       let d = fromJust $ toDim 4
       numberOperator d `shouldSatisfy` isCloseMat defTol
-        (fromJust $ creationOperator d `mul` annihilationOperator d)
+        (creationOperator d `mul` annihilationOperator d)
